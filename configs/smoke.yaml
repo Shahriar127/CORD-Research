@@ -46,6 +46,7 @@ fusion:
 
 audit:
   budget: 30
+  budget_tr: 30
 
 calibration:
   n_resamples: 2

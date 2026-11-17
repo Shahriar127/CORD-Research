@@ -97,7 +97,7 @@ class FusionConfig(_Strict):
     hgb_max_leaf_nodes: int = 15
     hgb_min_samples_leaf: int = 50
     hgb_l2: float = 1.0
-    baselines: tuple[str, ...] = ("mean_rank", "max_rank", "single")
+    baselines: tuple[str, ...] = ("oriented_mean_rank", "mean_rank", "max_rank", "single")
     exchangeability_permutations: int = 100
     reference: Literal["audited", "random", "oracle_clean"] = Field(
         "audited",
@@ -120,7 +120,11 @@ class AuditConfig(_Strict):
     budget_tr: int = Field(100, ge=0, description="top-b C_tr points audited per fold (fusion.reference=audited)")
     tr_ranking: str = Field(
         "mean_rank",
-        description="fusion-free score that ranks C_tr for its audit: mean_rank, max_rank or single:<signal>",
+        description=(
+            "fusion-free score that ranks C_tr for its audit: mean_rank (designed orientation; best "
+            "when the backdoor is learned), oriented_mean_rank (signals oriented by tail skewness; "
+            "helped only when it was not), max_rank or single:<signal>"
+        ),
     )
 
 

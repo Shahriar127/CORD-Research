@@ -116,3 +116,24 @@ def test_ranking_score_options() -> None:
     np.testing.assert_allclose(ranking_score(sig, "single:a"), sig["a"])
     with pytest.raises(KeyError):
         ranking_score(sig, "single:missing")
+
+
+def test_orientation_recovers_reversed_signal_and_keeps_a2() -> None:
+    """A poisoned minority in the *lower* tail of a signal is oriented upwards, and the oriented
+    mean rank is permutation-equivariant on the scored set (A2)."""
+    from sklearn.metrics import roc_auc_score
+
+    from cord.fusion import orientation_signs, oriented_mean_rank
+
+    rng = np.random.default_rng(5)
+    n = 3000
+    poison = rng.random(n) < 0.05
+    sig = {
+        "up": rng.standard_normal(n) + 3.0 * poison,  # designed direction
+        "down": rng.standard_normal(n) - 3.0 * poison,  # reversed (e.g. confidence, backdoor not learned)
+    }
+    assert orientation_signs(sig) == {"up": 1.0, "down": -1.0}
+    score = oriented_mean_rank(sig)
+    assert roc_auc_score(poison, score) > 0.95
+    perm = rng.permutation(n)
+    np.testing.assert_allclose(oriented_mean_rank({k: v[perm] for k, v in sig.items()}), score[perm])

@@ -67,6 +67,19 @@ Last updated: 2026-11-17
 3. **S1 fold directions** are unspecified in the proposal. 15° and 75° reproduce your numbers;
    state this in the paper.
 
+### Problem tracker (updated 2026-11-17, after the CPU mini-pilot)
+
+| # | Problem | Solution | Status |
+|---|---|---|---|
+| 1 | Fusion reference C_tr contains poison (T1) | Audit C_tr per fold, ranked by the mean of signal ranks (`fusion.reference: audited`) | Done. Mini-pilot: fused AUROC 0.76 → 0.90 (clean-reference bound 0.98) |
+| 2 | Audits of 100 points cannot clean a hold-out part holding ~100 poison | Budgets ≈ 3ρm: `audit.budget` = `audit.budget_tr` = 300 in `configs/base.yaml` | Done. Mini-pilot: presence 0.6 → 1.0, R recall 0.46 → 0.78. Contradicts RQ5's "b ≤ 200": see the changes doc |
+| 3 | Fig. 3a assumed independent C_cal per fold | Shared C_cal is the primary curve in S2; v3.1 setup dotted | Done |
+| 4 | Do signals separate poison once the backdoor is learned? | CPU mini-pilot, `configs/cpu_minipilot.yaml` (augmentation off) | Yes: ASR 99%; SCALE-UP 0.95, confidence 0.92, STRIP 0.82; PU fusion with a clean reference 0.98. Repeat on GPU with augmentation |
+
+Proposal wording for all four: `docs/proposal_v3.2_changes.md`. A data-driven orientation of
+signals (`oriented_mean_rank`) was tried and is **not** the default: it helped only when the
+backdoor was not learned.
+
 ## 3. What to do next
 
 ### Immediately (laptop)

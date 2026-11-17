@@ -190,16 +190,25 @@ def main() -> None:
 
     fig, axes = plt.subplots(1, 3, figsize=(10.5, 3.0))
     ga_all = a.groupby(["cal", "shift", "rho"]).mean(numeric_only=True)
-    ga = ga_all.loc["independent"]
+    ga = ga_all.loc["independent"]  # proposal v3.1 setting, used for the printed comparison
+    shared = ga_all.loc["shared"]  # the pipeline's setting: every fold model scores the same C_cal
     for i, shift in enumerate((4.5, 3.0)):
-        s = ga.loc[shift]
+        s, ind = shared.loc[shift], ga.loc[shift]
         axes[0].plot(s.index, s.presence, label=f"presence, shift {shift}", **series_style(2 * i))
         axes[0].plot(s.index, s.bh_any, ls="--", label=f"BH selects, shift {shift}", **series_style(2 * i + 1))
+        axes[0].plot(
+            ind.index,
+            ind.presence,
+            ls=":",
+            lw=1.2,
+            color=series_style(2 * i)["color"],
+            label="presence, independent C_cal per fold (v3.1)" if i == 0 else None,
+        )
     axes[0].axvline(presence_threshold_exact(N_FOLD, M_CAL, ALPHA, J), color=MUTED, ls=":", lw=1)
     axes[0].axvline(selection_floor(M_CAL, ALPHA), color=MUTED, ls=":", lw=1)
     axes[0].axhline(ALPHA, color=MUTED, ls="--", lw=0.8)
-    axes[0].set(title="(a) presence test vs BH", xlabel="poisoning rate ρ", ylabel="rejection rate")
-    axes[0].legend(loc="center right")
+    axes[0].set(title="(a) presence test vs BH (shared C_cal)", xlabel="poisoning rate ρ", ylabel="rejection rate")
+    axes[0].legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=2, fontsize=7)
     gb = b.groupby(["shift", "audited", "n_cal_poison"]).mean(numeric_only=True)
     i = 0
     for shift in (4.5, 3.0):
@@ -216,7 +225,7 @@ def main() -> None:
         ylabel="power",
         xscale="log",
     )
-    axes[1].legend(loc="center left")
+    axes[1].legend(loc="center right", bbox_to_anchor=(1.0, 0.62), fontsize=7)
     axes[2].axhline(ALPHA, color=MUTED, ls="--", lw=0.8)
     axes[2].set(
         title="(c) FDR under contamination",

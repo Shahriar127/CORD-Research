@@ -27,7 +27,7 @@ so a tampered file cannot execute code.
 ## Quickstart
 
 ```bash
-pytest -q                                      # 48 tests: exactness, validity, A2, end-to-end
+pytest -q                                      # 50 tests: exactness, validity, A2, end-to-end
 cord floors                                    # Table 5 (selection floor, presence threshold)
 python sim/s1_selections.py                    # Study S1  -> sim/results/
 python sim/s2_presence_contamination.py        # Study S2 (includes the former audit_sim.py)
@@ -97,6 +97,7 @@ configs/        base, pilot and smoke configs (YAML, validated by pydantic)
 experiments/    pilot grid, gate checker, Kaggle guide
 sim/            synthetic studies S1 and S2
 proofs/         LaTeX skeleton of Propositions 1–4
+docs/           proposal v3.1 → v3.2 changes with evidence
 tests/          pytest suite
 ```
 
@@ -120,38 +121,43 @@ architecture, register a builder in `cord.models` whose module exposes `embed()`
   code drift fail loudly.
 * `train.deterministic: true` switches on deterministic CUDA kernels (slower).
 
-## Design decision: auditing the PU reference `C_tr`
+## Design decision: audit both parts of the hold-out
 
-In mode T1, `C_tr` is a random hold-out, so it contains poison at the pool rate, and a PU
-classifier separating it from `D_j ∪ C_cal` compares two samples of almost the same mixture.
-**Decision (2026-11-17): extend the targeted audit to `C_tr`.** For each fold, the `C_tr` points
-are ranked by a fusion-free score (`audit.tr_ranking`, default `mean_rank`, a symmetric function
-of the scored set), the top `audit.budget_tr` are audited, and confirmed poison is dropped from
-the fusion fit. Only `C_tr` rows are dropped, so A2 and every validity statement are unchanged.
+In mode T1 the random hold-out contains poison at the pool rate, in both of its parts:
 
-`fusion.reference` selects the variant: `audited` (default), `random` (proposal v3.1 as written)
-or `oracle_clean` (all poison removed: an upper bound, equivalent to a full audit or mode T2).
-CPU sanity run (10k-image CIFAR-10 subset, BadNets 5%, 15 epochs, width 32):
+* `C_tr`, the negative class of the PU fusion: poison there makes the classifier compare two
+  samples of the same mixture, and the fused score loses power (not validity);
+* `C_cal`, the calibration set: poison there blocks FDR selections and the presence test
+  (Study S2).
 
-| PU reference | C_tr poison removed | fused AUROC | removal recall (t = 0.10) | clean share |
+**Decision (2026-11-17): audit both, with budgets that scale with the expected poison count.**
+For each fold, `C_tr` is ranked by the mean of signal ranks (`audit.tr_ranking`, a symmetric
+function of the scored set, so A2 holds), its top `audit.budget_tr` are audited and confirmed
+poison is dropped from the fusion fit; `C_cal` is audited as before (`audit.budget`). Defaults:
+300 each, about 3ρm for the pilot's settings. `fusion.reference` also offers `random` (v3.1 as
+written) and `oracle_clean` (all poison removed, an upper bound).
+
+CPU mini-pilot (`configs/cpu_minipilot.yaml`: 10k-image CIFAR-10 subset, BadNets 10%, ASR 99%;
+means over 5 hold-out resamples of one pair of fold models):
+
+| Audits (C_tr / C_cal per fold) | fused AUROC | removal recall | presence | fold-wise BH power (FDR) |
 |---|---|---|---|---|
-| `random` | 0 of 47 | 0.53 | 0.12 | 0.10 |
-| `audited`, `mean_rank` | ≈ 3 per fold | 0.56 | 0.15 | 0.10 |
-| `audited`, `single:latent_maha_penultimate` | ≈ 13 per fold | 0.63 | 0.26 | 0.10 |
-| `oracle_clean` | all | 0.76 | 0.46 | 0.10 |
+| 100 / 100 | 0.76 | 0.46 | 0.6 | 0 |
+| 300 / 300 | 0.90 | 0.78 | 1.0 | 0.16 (0.051) |
+| poison-free C_tr / 300 | 0.98 | 0.96 | 1.0 | 0.56 (0.058) |
 
-The audit is only as good as the ranking that chooses what to inspect. In this run the fold
-models had not learned the backdoor (ASR ≈ 6%), so several signals point the wrong way and
-`mean_rank` does no better than chance. The GPU pilot must measure this with learned
-backdoors. Rankings and references can be compared from cached features without retraining:
+The best single signal reached 0.95 (SCALE-UP), so with a clean reference the fusion beats it.
+Alternative scorings reuse the trained models (no retraining):
 
 ```bash
 cord run runs/pilot/<run>/config.yaml --stages score \
     --set fusion.reference=oracle_clean results_tag=cleanref
 cord run runs/pilot/<run>/config.yaml --stages score \
-    --set audit.tr_ranking=single:latent_maha_penultimate results_tag=audit-latent
+    --set audit.budget=100 audit.budget_tr=100 results_tag=b100
 python experiments/pilot/check_gate_g1.py runs/pilot --tag cleanref
 ```
+
+Full evidence and proposal wording: [`docs/proposal_v3.2_changes.md`](docs/proposal_v3.2_changes.md).
 
 ## Notes on the synthetic studies
 

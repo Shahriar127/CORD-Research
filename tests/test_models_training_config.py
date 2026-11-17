@@ -34,7 +34,7 @@ def test_augment_identity_and_shapes() -> None:
     assert torch.all(y.sum((1, 2, 3)) <= x.sum((1, 2, 3)) + 1e-4)
 
 
-@pytest.mark.parametrize("cfg", ["configs/smoke.yaml", "configs/pilot/cifar10.yaml"])
+@pytest.mark.parametrize("cfg", ["configs/smoke.yaml", "configs/pilot/cifar10.yaml", "configs/cpu_minipilot.yaml"])
 def test_shipped_configs_validate(cfg: str) -> None:
     c = load_config(ROOT / cfg, ["attack.rate=0.01", "seed=3"])
     assert c.attack.rate == 0.01 and c.seed == 3 and c.split.n_folds == 2

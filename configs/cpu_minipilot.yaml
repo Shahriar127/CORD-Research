@@ -1,0 +1,53 @@
+# CPU mini-pilot: a laptop-sized run in which the fold models actually learn the backdoor, so the
+# signals, the C_tr audit and the fusion can be checked on real (if small) backdoored models
+# before GPU time is spent. Not a substitute for the pilot: smaller network, data and epochs.
+#   cord run configs/cpu_minipilot.yaml                      (~30-40 min on a 12-core CPU)
+#
+# Augmentation is off here on purpose. With crop + flip, a width-16 network on 4,000 images had
+# fitted only 27% of its poisoned training samples after 21 epochs (ASR ~17%): at laptop scale
+# the moving trigger is not learned. The GPU pilot keeps the BackdoorBench recipe (crop + flip).
+defaults: [base.yaml]
+
+name: cpu-minipilot-badnets-r0.1-noaug
+output_dir: runs
+device: cpu
+
+data:
+  subset_train: 10000
+  subset_test: 2000
+
+attack:
+  name: badnets
+  rate: 0.10
+
+split:
+  m_tr: 1000
+  m_cal: 1000
+
+model:
+  kwargs: {width: 16}
+
+train:
+  epochs: 30
+  batch_size: 128
+  lr: 0.05
+  crop_padding: 0
+  hflip: false
+  amp: false
+  channels_last: false
+  trajectory_every: 3
+  checkpoint_every: 3
+
+extract:
+  strip_blends: 4
+
+signals:
+  ssl_encoder: pixels
+  latent_pca_dim: 32
+
+fusion:
+  exchangeability_permutations: 20
+
+calibration:
+  n_resamples: 5
+  presence_permutations: 50

@@ -34,8 +34,10 @@ signals:
 fusion:
   method: hgb
 
-audit:
-  budget: 100
+audit:                  # budgets should be ~3x the expected poison count rho * m (mini-pilot, 2026-11-17)
+  budget: 300           # top-b of C_cal audited per fold
+  budget_tr: 300        # top-b of C_tr audited per fold (PU reference)
+  tr_ranking: mean_rank
   miss_rate: 0.0
   wrong_removals: 0
 

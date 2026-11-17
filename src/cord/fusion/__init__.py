@@ -42,15 +42,42 @@ def max_rank(signals: Mapping[str, np.ndarray]) -> np.ndarray:
     return np.max([rank_normalise(v) for v in signals.values()], axis=0)
 
 
+def tail_skewness(x: np.ndarray, q: float = 0.01) -> float:
+    """Quantile tail skewness ``((x_{1-q} - med) - (med - x_q)) / (x_{1-q} - x_q)`` in [-1, 1]."""
+    lo, med, hi = np.quantile(x, [q, 0.5, 1.0 - q])
+    return float(((hi - med) - (med - lo)) / max(hi - lo, 1e-12))
+
+
+def orientation_signs(signals: Mapping[str, np.ndarray], q: float = 0.01) -> dict[str, float]:
+    """Orient each signal towards its heavier tail.
+
+    A poisoned minority shifted in one direction makes that tail heavy, whatever the designed
+    direction of the signal (e.g. confidence is *low* on held-out poison when the backdoor was
+    not learned). The sign is a symmetric function of the scored set, so A2 is kept. Signals
+    with no tail asymmetry keep their designed direction (+1).
+    """
+    return {k: (-1.0 if tail_skewness(np.asarray(v, np.float64), q) < 0 else 1.0) for k, v in signals.items()}
+
+
+def oriented_mean_rank(signals: Mapping[str, np.ndarray]) -> np.ndarray:
+    """Mean of within-set ranks after orienting every signal by :func:`orientation_signs`."""
+    signs = orientation_signs(signals)
+    return np.mean([rank_normalise(signs[k] * np.asarray(v, np.float64)) for k, v in signals.items()], axis=0)
+
+
 def ranking_score(signals: Mapping[str, np.ndarray], name: str) -> np.ndarray:
     """A fusion-free score (symmetric in the scored set) used to rank C_tr for its audit."""
+    if name == "oriented_mean_rank":
+        return oriented_mean_rank(signals)
     if name == "mean_rank":
         return mean_rank(signals)
     if name == "max_rank":
         return max_rank(signals)
     if name.startswith("single:") and name[len("single:") :] in signals:
         return np.asarray(signals[name[len("single:") :]], dtype=np.float64)
-    raise KeyError(f"unknown C_tr ranking {name!r}; use mean_rank, max_rank or single:<{', '.join(signals)}>")
+    raise KeyError(
+        f"unknown C_tr ranking {name!r}; use oriented_mean_rank, mean_rank, max_rank or single:<{', '.join(signals)}>"
+    )
 
 
 def break_ties(primary: np.ndarray, secondary: np.ndarray) -> np.ndarray:
@@ -114,6 +141,8 @@ def fused_scores(
 ) -> dict[str, np.ndarray]:
     """``{method: scores}`` for CORD's PU fusion and the configured baselines."""
     out = {"cord_pu": pu_fusion(signals, reference_mask, cfg, seed, exclude_from_fit)}
+    if "oriented_mean_rank" in cfg.baselines:
+        out["oriented_mean_rank"] = oriented_mean_rank(signals)
     if "mean_rank" in cfg.baselines:
         out["mean_rank"] = mean_rank(signals)
     if "max_rank" in cfg.baselines:
