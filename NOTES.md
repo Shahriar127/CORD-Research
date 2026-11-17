@@ -72,7 +72,8 @@ Last updated: 2026-11-17
 ### Immediately (laptop)
 - [x] Review the code and make the first commit (2026-11-17).
 - [x] License: MIT (`LICENSE`).
-- [ ] Push to a private GitHub repository; the Kaggle notebook clones from it (see §4).
+- [ ] Push to the private repository `github.com/Shahriar127/CORD-Research`; the Kaggle notebook clones
+      from it (see §4).
 - [x] Finding 1 decided: audit C_tr (`fusion.reference: audited`, now the default).
 - [ ] Update the proposal text for the C_tr audit: §3.3 (two audits, `budget_tr`), §4.1 (the
       fusion fit drops audited C_tr poison) and RQ5 (audit of C_tr as well as C_cal).
@@ -118,17 +119,37 @@ Last updated: 2026-11-17
 
 ## 4. Pushing to GitHub (one time)
 
-Create an **empty private** repository on github.com (no README or license, since both exist
-here), then run:
+GitHub account: <https://github.com/Shahriar127>. Repository (created 2026-11-17):
+**`git@github.com:Shahriar127/CORD-Research.git`** (private).
+The `origin` remote is already set in this folder.
 
-```bash
-cd "~/Documents/CORD Research"
-git remote add origin git@github.com:<your-user>/cord.git   # or the https URL
-git push -u origin main
+1. Push from this folder over SSH:
+
+   ```bash
+   cd ~/"Documents/CORD Research"
+   git push -u origin main
+   ```
+
+   SSH needs a key registered on GitHub. If the push says *Permission denied (publickey)*, run
+   `ssh-keygen -t ed25519 -C "Shahriar127"`, add `~/.ssh/id_ed25519.pub` under github.com →
+   Settings → SSH and GPG keys, and check with `ssh -T git@github.com`.
+   Without SSH, switch to HTTPS with a personal access token as the password:
+   `git remote set-url origin https://github.com/Shahriar127/CORD-Research.git`
+   (fine-grained token, access to `CORD-Research`, *Contents: Read and write*).
+2. If GitHub created the repository with a README or license, the first push is rejected. Run
+   `git pull --rebase origin main` once, then push again.
+3. Later pushes: `git push`.
+
+**On Kaggle** (private repository): create a second fine-grained token with *Contents: Read-only*
+on `CORD-Research`, store it as a Kaggle secret named `GITHUB_TOKEN` (*Add-ons → Secrets*), then:
+
+```python
+from kaggle_secrets import UserSecretsClient
+token = UserSecretsClient().get_secret("GITHUB_TOKEN")
+!git clone https://{token}@github.com/Shahriar127/CORD-Research.git && cd CORD-Research && pip install -q -e .
 ```
 
-On Kaggle, a private repository needs a token: add a GitHub fine-grained token with read
-access as a Kaggle secret, then clone `https://<token>@github.com/<your-user>/cord.git`.
+Never print the token or commit it. If it leaks, revoke it on GitHub.
 
 ## 5. Useful commands
 

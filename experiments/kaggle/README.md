@@ -11,8 +11,11 @@ CIFAR-10 and the DINOv2 weights), *Persistence* → files.
 
 ```bash
 # cell 1: code and environment
-!git clone <your-repo-url> cord && cd cord && pip install -q -e .
-%cd cord
+# private repo: clone with a token stored as a Kaggle secret (see NOTES.md §4)
+from kaggle_secrets import UserSecretsClient
+token = UserSecretsClient().get_secret("GITHUB_TOKEN")
+!git clone https://{token}@github.com/Shahriar127/CORD-Research.git && cd CORD-Research && pip install -q -e .
+%cd CORD-Research
 !cord env                                   # should print: device: cuda (Tesla T4)
 
 # cell 2: data (verified MD5, safe extraction)
