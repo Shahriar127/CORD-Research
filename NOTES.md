@@ -2,6 +2,8 @@
 
 Last updated: 2026-11-17
 
+The week-by-week plan with gates and dates is in [`ROADMAP.md`](ROADMAP.md).
+
 ## 1. What has been done
 
 ### Pipeline (`src/cord/`)

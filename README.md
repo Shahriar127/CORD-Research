@@ -12,6 +12,8 @@ statements under an explicit exchangeability condition:
 | Removal set `R` | What to drop before retraining? | expected clean share discarded ≤ t | `cord.pipeline.run_cord` |
 | Proxy set `F` | Which samples are surely poison? | FDR ≤ α (e-BH, any fold dependence) | `cord.stats.multiple_testing` |
 
+Plan and status: [`ROADMAP.md`](ROADMAP.md) · working notes: [`NOTES.md`](NOTES.md).
+
 ## Install
 
 ```bash
