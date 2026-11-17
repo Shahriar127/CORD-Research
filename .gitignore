@@ -1,0 +1,33 @@
+# environments
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+
+# data and experiment artifacts (regenerable; never commit)
+data/
+runs/
+sim/results/*.csv
+*.npz
+*.npy
+*.pt
+
+# keep the paper figures produced by the synthetic studies
+!sim/results/*.pdf
+
+# LaTeX build products
+proofs/*.aux
+proofs/*.log
+proofs/*.out
+proofs/*.pdf
+proofs/*.synctex.gz
+proofs/*.fdb_latexmk
+proofs/*.fls
+
+.DS_Store
+.idea/
+.vscode/

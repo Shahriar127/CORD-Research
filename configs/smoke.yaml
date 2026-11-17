@@ -1,0 +1,52 @@
+# End-to-end smoke test that runs on a laptop CPU in about a minute.
+# It exercises every stage and artifact; its numbers mean nothing.
+#   cord run configs/smoke.yaml
+defaults: [base.yaml]
+
+name: smoke
+output_dir: runs
+device: cpu
+
+data:
+  subset_train: 3000
+  subset_test: 500
+
+attack:
+  name: badnets
+  rate: 0.10
+
+split:
+  m_tr: 300
+  m_cal: 300
+
+model:
+  kwargs: {width: 8}
+
+train:
+  epochs: 2
+  batch_size: 256
+  lr: 0.05
+  amp: false
+  channels_last: false
+  trajectory_every: 1
+  checkpoint_every: 1
+  eval_batch_size: 512
+
+extract:
+  batch_size: 512
+  strip_blends: 2
+
+signals:
+  ssl_encoder: pixels   # offline, data-independent; use dinov2_vits14 for real runs
+  latent_pca_dim: 16
+
+fusion:
+  hgb_max_iter: 30
+  exchangeability_permutations: 5
+
+audit:
+  budget: 30
+
+calibration:
+  n_resamples: 2
+  presence_permutations: 20

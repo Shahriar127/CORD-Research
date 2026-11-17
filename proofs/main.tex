@@ -1,0 +1,125 @@
+% CORD -- theory notes for Gate G0 (Propositions 1-3 in full, Proposition 4 to be proved).
+% Build: latexmk -pdf main.tex
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm,hyperref,enumitem}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\theoremstyle{definition}
+\newtheorem{assumption}{Assumption}
+\newcommand{\Cal}{\mathcal{C}_{\mathrm{cal}}}
+\newcommand{\Ctr}{\mathcal{C}_{\mathrm{tr}}}
+\newcommand{\Hnull}{\mathcal{H}_0}
+\newcommand{\todo}[1]{\par\noindent\textbf{TODO.}~\emph{#1}\par}
+
+\title{CORD: proofs of the finite-sample guarantees}
+\author{Md.\ Shahriar Jubair Mahim}
+\date{Draft for Gate G0}
+
+\begin{document}
+\maketitle
+
+\section{Setting and notation}
+Pool of $n_0$ labelled samples; random hold-out $\mathcal{C}=\Ctr\cup\Cal$ with
+$|\Cal|=m$; training set $D$ partitioned into folds $D_1,\dots,D_J$; fold model $f_{-j}$ trained
+on $D\setminus D_j$; fused score $s_j(\cdot)$; null set $\Hnull$ (clean points). Code
+correspondence: \texttt{cord.splits}, \texttt{cord.signals}, \texttt{cord.fusion},
+\texttt{cord.pipeline}.
+
+\begin{assumption}[A1, clean exchangeability]
+Conditional on the poisoned samples, the clean points of each $D_j$ and the clean points of
+$\Cal$ are exchangeable.
+\end{assumption}
+
+\begin{assumption}[A2, score invariance]
+Within fold $j$, every score is a function of the scored point and of quantities that are
+either independent of $(D_j,\Cal)$ or invariant to permutations of $D_j\cup\Cal$.
+\end{assumption}
+
+\paragraph{Verification of A2 for the implementation.}
+\todo{One lemma per component, each pointing to the code and the test
+\texttt{tests/test\_signals\_fusion.py} that checks the property:
+(i) $f_{-j}$ depends only on $D\setminus D_j$ (\texttt{Split.train\_indices});
+(ii) class statistics, kNN graphs and rank normalisations are symmetric functions of
+$D_j\cup\mathcal{C}$ (\texttt{cord.signals});
+(iii) STRIP partners are drawn from $D\setminus D_j$;
+(iv) the frozen encoder is independent of the data;
+(v) the PU classifier is a symmetric function of the unordered set $D_j\cup\Cal$ given $\Ctr$,
+including the tie-breaking rule \texttt{break\_ties}.
+Note that (ii) uses $\Ctr$ as well: it is independent of $(D_j,\Cal)$ given the split.}
+
+\section{Validity of the selections}
+\begin{proposition}[Prop.~1]
+Under A1, A2 and an uncontaminated $\Cal$:
+(i) $\Pr(p_i\le t)\le t$ for every clean $i$;
+(ii) BH within fold $j$ controls that fold's FDR at $\alpha|\Hnull\cap D_j|/|D_j|$;
+(iii) e-BH on the pooled conformal e-values controls the overall FDR at $\alpha$ for any
+dependence between folds.
+\end{proposition}
+\begin{proof}[Proof structure]
+\todo{Condition on $D\setminus D_j$ and on the poisoned points of $D_j$. Then $f_{-j}$ is fixed;
+by A1 and A2 the scores of clean points of $D_j$ and of $\Cal$ are exchangeable; rank argument
+for (i). (ii): PRDS of conformal p-values (Bates et al., 2023) and its learned-score extension
+(Marandon et al., 2024). (iii): show $\sum_{i\in\Hnull\cap D_j}\mathbb{E}[e_i]\le|D_j|$ for the
+e-values built from a BH run at level $\alpha_{\mathrm{bh}}$ (Bashari et al., 2023), sum over folds,
+apply Wang and Ramdas (2022). Check that the bound of Bashari et al.\ carries over to scores
+learned from the pooled set.}
+\end{proof}
+
+\section{Selection floor}
+\begin{proposition}[Prop.~2]
+The smallest conformal p-value is $1/(m+1)$ and every conformal e-value is at most $m+1$.
+BH at level $\alpha$ and e-BH both select nothing unless the selected fraction satisfies
+$\rho\ge\rho_{\mathrm{sel}}=1/(\alpha(m+1))$.
+\end{proposition}
+\begin{proof}
+BH rejects $k$ of $N$ only if $p_{(k)}\le\alpha k/N$, hence only if $1/(m+1)\le\alpha k/N$,
+i.e.\ $k/N\ge 1/(\alpha(m+1))$. e-BH selects $k$ of $n$ only if $e_{(k)}\ge n/(\alpha k)$, and
+$e_{(k)}\le m+1$ gives the same inequality with $N=n$.
+\todo{Per-class calibration: show the floor is unchanged when hypotheses and calibration points
+are split proportionally across $K$ classes.}
+\end{proof}
+
+\section{Presence test}
+\begin{proposition}[Prop.~3]
+Let $T_j^{(k)}$ be the number of points of $D_j$ whose score exceeds the $k$-th largest score in
+$\Cal$. Under A1, A2 and no poison in $D_j\cup\Cal$, with $N=|D_j|$,
+\[
+\Pr\bigl(T_j^{(k)}\ge t\bigr)=F_{\mathrm{HG}}\bigl(k-1;\,N+m,\,m,\,t+k-1\bigr),
+\qquad\text{in particular}\quad \Pr\bigl(T_j^{(1)}\ge t\bigr)=\binom{N}{t}\Big/\binom{N+m}{t},
+\]
+so $\pi_j=F_{\mathrm{HG}}(k-1;N+m,m,T_j+k-1)$ is a valid p-value and rejecting when
+$\min_j\pi_j\le\alpha/J$ has false-alarm probability at most $\alpha$.
+\end{proposition}
+\begin{proof}[Proof structure]
+Under exchangeability (and almost surely no ties) the ranks of the $N+m$ pooled scores are a
+uniformly random permutation. $T^{(k)}\ge t$ iff at most $k-1$ calibration points are among the
+top $t+k-1$ pooled ranks; the number of calibration points among those positions is
+hypergeometric. Bonferroni over folds needs no assumption on their dependence.
+\todo{Ties: strict exceedance makes the test conservative; write the argument. Implementation:
+\texttt{cord.stats.presence}; exactness checked in \texttt{tests/test\_stats.py}.}
+\end{proof}
+
+\paragraph{Threshold.} Since $\binom{N}{t}/\binom{N+m}{t}\le(N/(N+m))^t$, the test rejects whenever
+$T_j\ge \ln(J/\alpha)/\ln(1+m/N)$, i.e.\ at a rate of high-scoring poison
+$\rho_{\mathrm{pres}}\approx\ln(J/\alpha)/m$ for $N\gg m$ (\texttt{cord floors}).
+
+\section{Contaminated calibration}
+\begin{proposition}[Prop.~4, to be proved]
+If a fraction $\varepsilon$ of $\Cal$ is poisoned, then for a clean point
+$p_i\ge\frac{1+m_{\mathrm{clean}}}{1+m}\,p_i^{\mathrm{clean}}$, hence
+$\Pr(p_i\le t)\le t\,(1+m)/(1+m_{\mathrm{clean}})$; conjecture: $\mathrm{FDR}\le\alpha/(1-\varepsilon)$
+up to $O(1/m)$.
+\end{proposition}
+\todo{(a) p-value distortion bound; (b) consequence for fold-wise BH and e-BH under adversarial
+placement; (c) an audit that removes only poisoned points keeps every clean calibration point,
+so (a) applies with a smaller contaminated share. If (b) fails, state it as an empirical
+observation backed by experiment E5.}
+
+\section{Residual check}
+\todo{Lemma: after removing $R$ with a threshold that is a symmetric function of the pooled
+scores and is also applied to $\Cal$, survivors remain exchangeable with surviving calibration
+points.}
+
+\end{document}

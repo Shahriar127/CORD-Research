@@ -1,0 +1,47 @@
+# Defaults shared by every experiment. Child configs list this file under `defaults:`.
+seed: 0
+output_dir: runs
+device: auto
+
+data:
+  name: cifar10
+  root: data            # folder containing cifar-10-batches-py/ (override on Kaggle/Colab)
+  verify_checksums: true
+
+split:
+  n_folds: 2            # J = 2 throughout (Section 4.1)
+  m_tr: 2000
+  m_cal: 2000
+
+model:
+  name: preact_resnet18
+
+train:                  # BackdoorBench CIFAR-10 recipe
+  epochs: 100
+  batch_size: 128
+  lr: 0.01
+  momentum: 0.9
+  weight_decay: 5.0e-4
+  schedule: cosine
+  amp: true
+  trajectory_every: 5
+  checkpoint_every: 5
+
+signals:
+  enabled: [latent, confidence, perturbation, activation, label_content]
+  ssl_encoder: dinov2_vits14
+
+fusion:
+  method: hgb
+
+audit:
+  budget: 100
+  miss_rate: 0.0
+  wrong_removals: 0
+
+calibration:
+  alpha: 0.05
+  alpha_bh: 0.045
+  removal_level: 0.10
+  presence_k: 1
+  n_resamples: 20

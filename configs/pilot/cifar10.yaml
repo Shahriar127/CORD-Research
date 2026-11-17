@@ -1,0 +1,15 @@
+# CIFAR-10 pilot (Section 7.1): PreAct-ResNet-18, J = 2, mode T1, m_cal = 2000.
+# One condition per invocation; the grid runner sets attack/rate/seed and the run name:
+#   python experiments/pilot/run_grid.py --grid experiments/pilot/grid.yaml
+defaults: [../base.yaml]
+
+name: pilot-cifar10-badnets-r0.05-s0
+output_dir: runs/pilot
+
+attack:
+  name: badnets
+  rate: 0.05
+  target: 0
+
+split:
+  m_cal: 2000

@@ -1,0 +1,11 @@
+# Pilot grid (Section 7.1): 4 attacks x 2 rates x 3 seeds + no-attack x 3 seeds = 27 conditions,
+# each with J = 2 fold models -> 54 training runs.
+base_config: configs/pilot/cifar10.yaml
+attacks:
+  badnets: {}
+  blend: {}
+  wanet: {}
+  adaptive_blend: {}
+rates: [0.01, 0.05]
+seeds: [0, 1, 2]
+no_attack_seeds: [0, 1, 2]
