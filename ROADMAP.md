@@ -24,7 +24,7 @@ has checked the proofs. Those two are now the critical path.
 1. **next** Email for the two open roles: a statistician to check `proofs/main.tex` (send
    `proofs/REVIEW.md` with it), and a supervisor or collaborator with GPU access. Slowest items;
    both are preconditions in the proposal.
-2. **next** First Kaggle session (`experiments/kaggle/README.md`): one condition, BadNets 5%,
+2. **next** First GPU run, on the lab machine (`GPU_RUN.md`) or Kaggle (`experiments/kaggle/kaggle_codes.md`): one condition, BadNets 5%,
    standard augmentation. Check: ASR above 90% in both fold models, seconds per epoch, peak memory,
    DINOv2 download works. Then re-score it without retraining:
    `--set fusion.reference=random results_tag=random` and `fusion.reference=oracle_clean
