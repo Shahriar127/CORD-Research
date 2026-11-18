@@ -1,10 +1,15 @@
-"""Activation dominance (lineage: AGPD, reverse backdoor distillation).
+"""Activation dominance (Table 4 of the proposal; lineage: AGPD [12]).
 
 * ``act_topk_share``: share of the penultimate activation mass carried by the top ``k`` units
   (a trigger often drives a few dominant neurons).
 * ``grad_concentration``: cosine similarity between the sample's loss gradient w.r.t. the
   penultimate features, ``W^T (softmax - onehot(y))``, and the robust mean gradient direction of
   its given class (poison of a target class shares one gradient direction; AGPD's dispersion idea).
+
+Not implemented yet: the second form of this row in proposal v3.3, *shadow-model agreement* after
+RBD [16] (whether the prediction survives fine-tuning that erases clean behaviour). To keep A2, the
+shadow model must be derived from ``f_{-j}`` using only data outside ``D_j ∪ C_cal`` (``D`` minus ``D_j``, or
+the audited ``C_tr``); see ``proofs/main.tex``, Lemma 2(x), and ``ROADMAP.md``.
 """
 
 from __future__ import annotations

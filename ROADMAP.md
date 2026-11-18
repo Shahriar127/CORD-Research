@@ -1,20 +1,20 @@
 # CORD roadmap
 
 Updated **2026-11-18** (week 0). `[x]` = done, `[ ]` = to do, **next** = the actions to take now.
-Gate criteria are the proposal's (Table 7, as changed in v3.2). Week 0 started on Tuesday
+Gate criteria are the proposal's (Table 7, as changed in v3.2; current version v3.3). Week 0 started on Tuesday
 2026-11-17; dates below are the last day of each period.
 
 ## Where we are
 
 Everything that can be done without a GPU or another person is done or under way: the pipeline is
 built and tested, the simulations reproduce the proposal, Propositions 1–3 are proved in full and
-Proposition 4 mostly, and the proposal is at v3.2. Nothing has run on a GPU yet, and nobody outside
+Proposition 4 mostly, and the proposal is at v3.3. Nothing has run on a GPU yet, and nobody outside
 has checked the proofs. Those two are now the critical path.
 
 | Gate | Due | Done | Blocking item |
 |---|---|---|---|
 | **G0** theory | 2026-12-21 | 6 of 7 | Outside statistician |
-| **G1** CIFAR-10 pilot | 2027-01-25 | 0 of 7 (code ready) | First GPU run |
+| **G1** CIFAR-10 pilot | 2027-01-25 | 0 of 8 (code ready) | First GPU run; shadow-model signal |
 | **G2** contamination | 2027-03-01 | 1 of 5 (Prop. 4 mostly proved) | Pilot scores |
 | **G3** core tier, adaptive attack | 2027-04-26 | 0 of 6 | GPU compute beyond free notebooks |
 | **G4** downstream | 2027-06-07 | 0 of 2 | — |
@@ -30,17 +30,20 @@ has checked the proofs. Those two are now the critical path.
    `--set fusion.reference=random results_tag=random` and `fusion.reference=oracle_clean
    results_tag=cleanref`.
 3. **next** Read the seven papers with `proofs/READING.md` beside you.
-4. Put Change 6 (Proposition 4, ties, pre-specification) into the v3.2 Word file; Changes 1–5 are in.
-5. Check our attacks against an independent implementation (`backdoor-toolbox` or BackdoorBench):
+4. Put Change 6 (Proposition 4, ties, pre-specification) into the Word file
+   (`docs/CORD_Research_Proposal_v3.3.docx` → v3.4); Changes 1–5 and the RBD edits are in.
+5. Verify reference [16] (RBD, IEEE TDSC 2024) on IEEE Xplore, DOI 10.1109/TDSC.2024.3369751:
+   volume, issue and pages. Check whether RBD has public code.
+6. Check our attacks against an independent implementation (`backdoor-toolbox` or BackdoorBench):
    one BadNets and one Adap-Blend model, compare ASR and clean accuracy.
-6. From the timed run: write the pilot budget (54 fold trainings + DINOv2 features) and start the
+7. From the timed run: write the pilot budget (54 fold trainings + DINOv2 features) and start the
    grid.
 
 ## Timeline
 
 | Weeks | Ends | Gate | Main work |
 |---|---|---|---|
-| 0 | 2026-11-23 | — | Pipeline, simulations, proofs, v3.2 (**mostly done**) |
+| 0 | 2026-11-23 | — | Pipeline, simulations, proofs, v3.3 (**mostly done**) |
 | 1–4 | 2026-12-21 | **G0** | Outside proof check, first GPU run, attack check |
 | 5–9 | 2027-01-25 | **G1** | CIFAR-10 pilot |
 | 10–14 | 2027-03-01 | **G2** | Contamination and audit study |
@@ -82,13 +85,15 @@ paper.
       0.78.
 
 **Proposal**
-- [x] v3.2 (`~/Downloads/CORD_Research_Proposal_v3.2.docx`), with evidence for every change in
-      `docs/proposal_v3.2_changes.md`:
+- [x] v3.3 (`docs/CORD_Research_Proposal_v3.3.docx`; v3.2 in `~/Downloads`), with evidence for
+      every change in `docs/proposal_v3.2_changes.md`:
       1. audit of the fusion reference `C_tr`;
       2. audit budgets of about 3ρm;
       3. shared calibration set in Study S2;
       4. signal direction depends on whether the backdoor was learned;
-      5. corrected e-value threshold (eq. 3) and a precise selection floor.
+      5. corrected e-value threshold (eq. 3) and a precise selection floor;
+      7. RBD [16] (v3.3): threshold-at-false-rejection-rate detectors in the Introduction, corrected
+         description in Section 2.1, shadow-model agreement in Table 4, RBD as a baseline.
 - [ ] Change 6 (Proposition 4, ties, pre-specification) still to go into the Word file.
 
 ## Gate G0 — theory (due 2026-12-21)
@@ -111,6 +116,10 @@ a clean clone. **Fallback:** claim only the single-fold (split-sample) guarantee
 - [ ] Attack check against `backdoor-toolbox` / BackdoorBench.
 - [ ] Run the grid: 4 attacks × 2 rates × 3 seeds + 3 no-attack seeds = 27 conditions, 54 fold
       trainings (`python experiments/pilot/run_grid.py --max-hours 11`; rerun to resume).
+- [ ] **Before the grid:** implement the shadow-model-agreement form of the activation row
+      (Table 4, v3.3), or drop it from Table 4. The signal set is frozen after the pilot, so a
+      candidate not built before it can never be chosen. A2 requires the shadow model to come from
+      `f_{-j}` with data outside `D_j ∪ C_cal` (`proofs/main.tex`, Lemma 2(x)).
 - [ ] Per signal: held-out AUROC and rank correlation; keep a signal only if it adds separation on
       an attack the others miss, then **freeze** the signal set.
 - [ ] Report runs with low ASR separately (signals reverse there).
@@ -142,8 +151,10 @@ mode T2 the default and report T1 as a limit result.
 - [ ] GTSRB loader, config and test (README, "Adding a dataset").
 - [ ] Tiny-ImageNet loader; VGG-19-BN model.
 - [ ] More attacks: ISSBA, Label-Consistent, Narcissus, Adap-Patch.
-- [ ] Baselines: check which have public code first (unchecked: SPC, RPP, CASCADE, ASSET, Beatrix,
-      FLARE; BackdoorBench has AGPD, SPECTRE, Spectral Signatures, STRIP).
+- [ ] Baselines: check which have public code first (unchecked: SPC, RPP, CASCADE, RBD, ASSET,
+      Beatrix, FLARE; BackdoorBench has AGPD, SPECTRE, Spectral Signatures, STRIP). RBD is an
+      input-level detector that thresholds at a false-rejection rate on clean hold-out data; give it
+      the same hold-out as CORD (equal trusted budget).
 - [ ] Defence-aware attack (C2) and the evasion frontier.
 - [ ] Validity on the core tier for attacker classes C1–C3.
 

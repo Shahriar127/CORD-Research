@@ -1,7 +1,7 @@
 # CORD
 
 **Conformal evidence fusion for detecting backdoor poison, with presence testing, false
-discovery control and detection floors.** Research code for the CORD proposal (v3.1).
+discovery control and detection floors.** Research code for the CORD proposal (v3.3, `docs/CORD_Research_Proposal_v3.3.docx`).
 
 Given an untrusted training pool, CORD answers three questions with finite-sample error
 statements under an explicit exchangeability condition:
@@ -99,7 +99,7 @@ configs/        base, pilot and smoke configs (YAML, validated by pydantic)
 experiments/    pilot grid, gate checker, Kaggle guide
 sim/            synthetic studies S1 and S2
 proofs/         Propositions 1–4 (main.tex; Prop. 4 in part), internal review, reading guide
-docs/           proposal v3.1 → v3.2 changes with evidence
+docs/           proposal v3.3 (Word) and the changes since v3.1 with their evidence
 tests/          pytest suite
 ```
 

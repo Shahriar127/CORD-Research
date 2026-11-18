@@ -83,7 +83,10 @@ The week-by-week plan with gates and dates is in [`ROADMAP.md`](ROADMAP.md).
 | 6 | Ties broke the theorems' A3 for discrete scores | Random tie-breaking before calibration (`calibration.tie_break: random`) | Done (2026-11-18) |
 | 7 | Proposition 4 was a conjecture | Proved FDR ≤ α/(1−ε) for audits that do not use calibration scores; open for the score-ranked audit | Done in part (2026-11-18), `proofs/REVIEW.md` |
 
-Proposal wording for all of these: `docs/proposal_v3.2_changes.md` (Changes 1–6). A data-driven orientation of
+| 8 | Proposal v3.3 adds RBD [16] (made in another session) | Shadow-model agreement in Table 4 needs code before the pilot; RBD baseline; check [16] on IEEE Xplore | Open; tracked in `ROADMAP.md` |
+
+Proposal wording for all of these: `docs/proposal_v3.2_changes.md` (Changes 1–7). The current
+proposal is `docs/CORD_Research_Proposal_v3.3.docx` (v3.2 plus the RBD edits; Change 6 not yet in). A data-driven orientation of
 signals (`oriented_mean_rank`) was tried and is **not** the default: it helped only when the
 backdoor was not learned.
 

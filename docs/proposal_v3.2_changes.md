@@ -1,4 +1,7 @@
-# Proposal v3.1 → v3.2: changes from the implementation
+# Proposal changes since v3.1, with their evidence
+
+Current version: **v3.3** (`docs/CORD_Research_Proposal_v3.3.docx`) = v3.2 (Changes 1–5) plus
+Change 7 below. Change 6 is not yet in the Word file.
 
 Drafted 2026-11-17 from what the pipeline, the synthetic studies and two CPU runs showed. Each
 item gives the reason, the evidence, and replacement text to paste into the proposal.
@@ -210,4 +213,26 @@ Source: `proofs/REVIEW.md` (internal review, 2026-11-18) and `proofs/main.tex`.
 - **Pre-specification.** Section 7.3, add: "α, α_bh, the removal level, k, the signal set, the
   fusion method and the audit budgets are fixed before the evaluated data are seen; the α_bh sweep
   of Section 6.1 is run on development conditions only."
+
+---
+
+## Change 7 — RBD [16] (made directly in v3.3)
+
+Edits made in another session to produce v3.3; recorded here so the project stays consistent.
+
+- **Introduction, "No threshold is principled":** STRIP [14] and RBD [16] fix a false-rejection
+  rate on clean hold-out data, the empirical form of the removal-set bound; they say nothing about
+  the purity of the flagged set or about whether an attack happened.
+- **Section 2.1:** [16] is described as "agreement with a backdoor-only shadow model" (it was
+  "activation dominance").
+- **Table 4, activation row:** adds shadow-model agreement as a second form of the signal, and
+  "tasks with few classes" as a blind spot.
+- **Section 7.2:** RBD [16] joins the detection baselines.
+
+**Consequences for the project.** (1) Shadow-model agreement is not implemented; it must be built
+before the pilot or removed from Table 4, because the signal set is frozen after the pilot.
+(2) A shadow model satisfies A2 only if it is derived from the fold model with data outside
+`D_j ∪ C_cal` (`proofs/main.tex`, Lemma 2(x)). (3) RBD is a baseline to implement or obtain, with
+the same trusted hold-out as CORD. (4) Check the volume and pages of [16] on IEEE Xplore
+(DOI 10.1109/TDSC.2024.3369751) before submission.
 

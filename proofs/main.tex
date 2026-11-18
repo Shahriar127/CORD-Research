@@ -42,7 +42,7 @@ $\mathrm{FDR}\le\alpha/(1-\varepsilon)$ under a share $\varepsilon$ of poisoned 
 placed arbitrarily (Proposition~4, for audits that do not depend on clean calibration scores). The proofs are
 self-contained. They rest on one structural lemma (conditionally on everything except which clean
 points went to the fold and which to the calibration set, all scores are fixed and that split is
-uniformly random) and on a classical backward supermartingale. Numbering follows proposal v3.2.
+uniformly random) and on a classical backward supermartingale. Numbering follows proposal v3.3.
 \end{abstract}
 
 \section{Setting and notation}
@@ -166,11 +166,16 @@ Each component of the CORD pipeline, as implemented, satisfies A2:
   function $g_j$ given $\G_j$, and the fused score is $g_j$ applied to the point's signal vector.
 \item \emph{Tie-breaking of the fused score (new in v3.2).} The implementation orders points by
   $g_j$ and breaks ties by the mean rank of item~(vi), a symmetric function of $S_j$.
+\item \emph{Shadow-model agreement (proposal v3.3, Table~4; not yet implemented).} A shadow model
+  that keeps the backdoor and erases clean behaviour, after RBD [16], satisfies A2 if it is derived
+  from $f_{-j}$ using only data outside $\D_j\cup\Cal$ (e.g.\ $\D\setminus\D_j$ or the audited
+  $\Ctr$) and data-independent seeds: it is then $\G_j$-measurable, like item~(i). Fitting it on
+  points of $\D_j\cup\Cal$ would break A2 unless the fit is a symmetric function of that set.
 \end{enumerate}
 \end{lemma}
 
 \begin{proof}
-Items (i)--(iii) and (v) are functions of the point and of $\G_j$-measurable objects. Items
+Items (i)--(iii), (v) and (x) are functions of the point and of $\G_j$-measurable objects. Items
 (iv), (vi), (vii) and (ix) are functions of the point and of symmetric functions of $S_j$
 (together with $\G_j$-measurable labels), and a symmetric function of $S_j$ is fixed given $\G_j$
 because $S_j=\Q_j\cup\{\text{poisoned points of }S_j\}\cup\Ctr$ as an unordered set. For (viii),
