@@ -8,9 +8,10 @@ __pycache__/
 .pytest_cache/
 .hypothesis/
 
-# data and experiment artifacts (regenerable; never commit)
-data/
-runs/
+# data and experiment artifacts (regenerable; never commit).
+# Anchored with a leading slash: a bare `data/` also matched the source package src/cord/data/.
+/data/
+/runs/
 sim/results/*.csv
 *.npz
 *.npy
