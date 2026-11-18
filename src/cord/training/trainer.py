@@ -54,15 +54,29 @@ class FoldData:
 # ---------------------------------------------------------------------------------------------
 
 
+def native_bf16(device: str) -> bool:
+    """True on GPUs with hardware bf16 (compute capability >= 8.0: A100, L4, H100, RTX 30xx+).
+
+    ``torch.cuda.is_bf16_supported()`` also returns True when bf16 is only *emulated* (e.g. Tesla
+    T4, P100), where it is much slower than fp16; so the capability is checked directly.
+    """
+    if not device.startswith("cuda"):
+        return False
+    index = torch.device(device).index
+    major, _ = torch.cuda.get_device_capability(index if index is not None else torch.cuda.current_device())
+    return major >= 8
+
+
 def autocast_context(device: str, enabled: bool) -> AbstractContextManager[Any]:
+    """bf16 autocast on Ampere and newer, fp16 elsewhere (with loss scaling, see below)."""
     if not enabled or not device.startswith("cuda"):
         return nullcontext()
-    dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+    dtype = torch.bfloat16 if native_bf16(device) else torch.float16
     return torch.autocast(device_type="cuda", dtype=dtype)
 
 
 def needs_grad_scaler(device: str, enabled: bool) -> bool:
-    return enabled and device.startswith("cuda") and not torch.cuda.is_bf16_supported()
+    return enabled and device.startswith("cuda") and not native_bf16(device)
 
 
 @torch.no_grad()
@@ -249,6 +263,7 @@ def train_fold_model(
         "train_seconds_this_session": time.perf_counter() - t0,
         "device": device,
         "gpu": torch.cuda.get_device_name(0) if device.startswith("cuda") else None,
+        "precision": ("bf16" if native_bf16(device) else "fp16") if cfg.amp and device.startswith("cuda") else "fp32",
         "peak_gpu_mem_gb": torch.cuda.max_memory_allocated() / 1e9 if device.startswith("cuda") else None,
     }
     save_torch(work_dir / "model.pt", model.state_dict())

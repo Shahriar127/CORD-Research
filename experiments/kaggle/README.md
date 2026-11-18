@@ -1,5 +1,8 @@
 # Running CORD on a GPU (Kaggle, Colab or a server)
 
+**Ready-to-paste notebook cells for the first Kaggle run: [`kaggle_codes.md`](kaggle_codes.md).**
+GPU only (T4 or P100); CORD does not support TPUs.
+
 Nothing in the code changes between CPU and GPU: `device: auto` picks CUDA when it exists,
 mixed precision switches on (bf16 on Ampere and newer, fp16 with loss scaling on T4/P100),
 and the dataset is moved to GPU memory, so the data loader is not a bottleneck.

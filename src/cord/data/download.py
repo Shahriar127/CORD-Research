@@ -62,7 +62,7 @@ def download_dataset(name: str, root: Path) -> Path:
                 dest = (root / m.name).resolve()
                 if not (m.isfile() or m.isdir()) or base not in (dest, *dest.parents):
                     raise ValueError(f"unsafe archive member {m.name!r}")
-            tar.extractall(root)  # noqa: S202 - members validated above
+            tar.extractall(root)  # members validated above
     archive.unlink()
     log.info("extracted to %s", target)
     return target
