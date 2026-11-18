@@ -76,3 +76,20 @@ def test_no_attack_condition(tmp_path: Path, synthetic_registered: str) -> None:
     ExperimentRun(cfg).run()
     s = read_json(tmp_path / "clean/results/summary.json")
     assert s["methods"]["cord_pu"]["n_poison"] == 0
+
+
+@pytest.mark.slow
+def test_rescore_without_dataset(tmp_path: Path, synthetic_registered: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A run trained elsewhere can be re-scored from its artifacts alone: no dataset, no attack
+    code, and the scoring's own settings are saved next to its results."""
+    ExperimentRun(_cfg(tmp_path, "moved")).run()
+
+    def unavailable(_root: Path) -> ImageDataset:
+        raise FileNotFoundError("dataset not on this machine")
+
+    monkeypatch.setitem(data_mod._REGISTRY, "tiny", unavailable)
+    cfg = _cfg(tmp_path, "moved", "results_tag=b5", "audit.budget=5")
+    ExperimentRun(cfg).run(stages=("score",))
+    out = tmp_path / "moved" / "results-b5"
+    assert (out / "summary.json").exists()
+    assert "budget: 5" in (out / "config.yaml").read_text()

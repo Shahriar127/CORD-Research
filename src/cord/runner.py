@@ -107,6 +107,34 @@ class ExperimentRun:
             len(self.pool.y), s.m_tr, s.m_cal, s.n_folds, make_rng(self.cfg.component_seed("split"), "split")
         )
 
+    @cached_property
+    def manifest(self) -> dict[str, np.ndarray]:
+        """Labels and poison kinds of the pool, without regenerating images.
+
+        Written by ``prepare``; scoring reads it, so a run trained on one machine (e.g. a GPU
+        notebook) can be re-scored on another without the dataset or the attack code.
+        """
+        path = self.dir / "manifest.npz"
+        if path.exists():
+            return load_npz(path)
+        pool = self.pool  # runs prepared before the manifest existed
+        return {"y": pool.y, "y_clean": pool.y_clean, "kind": pool.kind}
+
+    @property
+    def labels(self) -> np.ndarray:
+        return self.manifest["y"].astype(np.int64)
+
+    @property
+    def poison_mask(self) -> np.ndarray:
+        return self.manifest["kind"] != 0
+
+    @cached_property
+    def num_classes(self) -> int:
+        marker = self.dir / "prepare.json"
+        if marker.exists() and "num_classes" in (info := read_json(marker)):
+            return int(info["num_classes"])
+        return self.dataset.num_classes
+
     @property
     def results_dir(self) -> Path:
         tag = self.cfg.results_tag
@@ -125,10 +153,12 @@ class ExperimentRun:
         dump_config(self.cfg, self.dir / "config.yaml")
         pool, split = self.pool, self.split
         split.save(self.dir / "split.npz")
+        save_npz(self.dir / "manifest.npz", y=pool.y, y_clean=pool.y_clean, kind=pool.kind)
         pm = pool.poison_mask
         info = {
             "pool_digest": array_digest(pool.x, pool.y, pool.kind),
             "n_pool": len(pool.y),
+            "num_classes": self.dataset.num_classes,
             "true_rate": pool.rate,
             "attack_info": pool.info,
             "poison_in_holdout_tr": int(pm[split.holdout_tr].sum()),
@@ -209,8 +239,8 @@ class ExperimentRun:
         scored = ScoredSet(
             cache=load_npz(self.fold_dir(j) / "features.npz"),
             trajectory=load_npz(self.fold_dir(j) / "trajectory.npz"),
-            labels=self.pool.y[rows].astype(np.int64),
-            num_classes=self.dataset.num_classes,
+            labels=self.labels[rows],
+            num_classes=self.num_classes,
             ssl=None if ssl is None else ssl[rows],
         )
         signals = compute_signals(scored, self.cfg.signals)
@@ -226,7 +256,7 @@ class ExperimentRun:
         and only C_tr rows are dropped, so the fit stays a symmetric function of D_j ∪ C_cal (A2).
         """
         cfg = self.cfg
-        poison_rows = self.pool.poison_mask[self.split.scored_indices(j)]
+        poison_rows = self.poison_mask[self.split.scored_indices(j)]
         if cfg.fusion.reference == "random":
             return None
         if cfg.fusion.reference == "oracle_clean":
@@ -244,7 +274,8 @@ class ExperimentRun:
         return exclude
 
     def score(self, force: bool = False) -> dict[str, Any]:
-        cfg, split, pool = self.cfg, self.split, self.pool
+        cfg, split = self.cfg, self.split
+        poison, labels = self.poison_mask, self.labels
         summary_path = self.results_dir / "summary.json"
         if summary_path.exists() and not force:
             log.info("score: done")
@@ -254,8 +285,8 @@ class ExperimentRun:
         signals = [self._fold_signals(j, ssl, force) for j in range(split.n_folds)]
         holdout = split.holdout
         n_fold = [len(f) for f in split.folds]
-        is_poison_D = np.concatenate([pool.poison_mask[f] for f in split.folds])
-        labels_D = np.concatenate([pool.y[f] for f in split.folds]).astype(np.int64)
+        is_poison_D = np.concatenate([poison[f] for f in split.folds])
+        labels_D = np.concatenate([labels[f] for f in split.folds])
         target = cfg.attack.target if (cfg.attack.name != "none" and cfg.attack.mapping == "all_to_one") else None
         seed = cfg.component_seed("score")
 
@@ -266,10 +297,10 @@ class ExperimentRun:
             tr_set = split.holdout_tr if b == 0 else resample_holdout_partition(holdout, cfg.split.m_tr, rng_b)[0]
             tr_mask_h = np.isin(holdout, tr_set)
             cal_idx = holdout[~tr_mask_h]
-            cal_poison = pool.poison_mask[cal_idx]
+            cal_poison = poison[cal_idx]
             per_method: dict[str, tuple[list[np.ndarray], list[np.ndarray]]] = {}
             tr_stats = {
-                "audit_tr_poison": int(pool.poison_mask[holdout[tr_mask_h]].sum()),
+                "audit_tr_poison": int(poison[holdout[tr_mask_h]].sum()),
                 "audit_tr_poison_removed": 0.0,
             }
             for j in range(split.n_folds):
@@ -308,7 +339,7 @@ class ExperimentRun:
                         outputs,
                         is_poison_D,
                         labels_D,
-                        self.dataset.num_classes,
+                        self.num_classes,
                         target,
                         fold_s,
                         [len(c) for c in audited],
@@ -339,6 +370,7 @@ class ExperimentRun:
         self.timings["score"] = time.perf_counter() - t0
         summary["timings_s_this_session"] = self.timings
         write_json(summary_path, summary)
+        dump_config(cfg, self.results_dir / "config.yaml")  # the exact settings of this scoring
         log.info(
             "score: %s",
             {
