@@ -157,3 +157,35 @@ def test_permutation_global_test_is_valid() -> None:
         for _ in range(300)
     ]
     assert np.mean(np.asarray(ps) <= 0.1) <= 0.1 + 3 * np.sqrt(0.09 / 300)
+
+
+def test_random_tiebreak_keeps_order_and_breaks_ties() -> None:
+    from cord.pipeline import random_tiebreak
+
+    rng = np.random.default_rng(0)
+    fold, cal = np.array([3.0, 1.0, 2.0, 2.0]), np.array([2.0, 0.0, 5.0])
+    f, c = random_tiebreak(fold, cal, rng)
+    pooled_old, pooled_new = np.concatenate([fold, cal]), np.concatenate([f, c])
+    assert np.unique(pooled_new).size == pooled_new.size  # all distinct
+    # strict order of distinct original scores is preserved
+    for a in range(pooled_old.size):
+        for b in range(pooled_old.size):
+            if pooled_old[a] < pooled_old[b]:
+                assert pooled_new[a] < pooled_new[b]
+
+
+def test_tiebreak_keeps_fdr_control_on_discrete_scores() -> None:
+    """Discrete scores with heavy ties: fold-wise BH after random tie-breaking keeps FDR <= alpha * pi0."""
+    from cord.config import CalibrationConfig
+    from cord.pipeline import run_cord
+
+    rng = np.random.default_rng(1)
+    cfg = CalibrationConfig(alpha=0.2, alpha_bh=0.2, presence_k=1, n_resamples=1)
+    n0, n1, m, reps = 150, 50, 60, 2000
+    fdp = np.empty(reps)
+    for r in range(reps):
+        fold = np.concatenate([rng.integers(0, 6, n0), rng.integers(4, 6, n1)]).astype(float)
+        cal = rng.integers(0, 6, m).astype(float)
+        sel = run_cord([fold], [cal], cfg, rng).foldwise_bh
+        fdp[r] = sel[:n0].sum() / max(sel.sum(), 1)
+    assert fdp.mean() <= 0.2 * n0 / (n0 + n1) + 3 * fdp.std() / np.sqrt(reps)

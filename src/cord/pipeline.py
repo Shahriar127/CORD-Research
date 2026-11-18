@@ -56,9 +56,37 @@ class CordOutputs:
     bh_thresholds: tuple[float, ...]
 
 
+def random_tiebreak(
+    fold_scores: np.ndarray, cal_scores: np.ndarray, rng: np.random.Generator
+) -> tuple[np.ndarray, np.ndarray]:
+    """Replace scores by their pooled ranks, ties broken by independent uniforms.
+
+    Every CORD procedure (conformal p-values, BH, e-values, presence test) depends on the scores only
+    through their order, so this changes nothing when scores are distinct. With ties it makes them
+    distinct while keeping clean fold and calibration points exchangeable, which is assumption A3
+    of ``proofs/main.tex``; tied discrete scores (e.g. SCALE-UP consistency) otherwise fall
+    outside Proposition 1(ii)-(iii).
+    """
+    pooled = np.concatenate([np.asarray(fold_scores, np.float64), np.asarray(cal_scores, np.float64)])
+    order = np.lexsort((rng.random(pooled.size), pooled))  # primary key: score; secondary: uniform
+    ranks = np.empty(pooled.size, dtype=np.float64)
+    ranks[order] = np.arange(pooled.size, dtype=np.float64)
+    return ranks[: len(fold_scores)], ranks[len(fold_scores) :]
+
+
 def run_cord(
-    fold_scores: Sequence[np.ndarray], cal_scores: Sequence[np.ndarray], cfg: CalibrationConfig
+    fold_scores: Sequence[np.ndarray],
+    cal_scores: Sequence[np.ndarray],
+    cfg: CalibrationConfig,
+    rng: np.random.Generator | None = None,
 ) -> CordOutputs:
+    """The three outputs. With ``cfg.tie_break == "random"`` an ``rng`` is required, and scores are
+    replaced by pooled ranks with random tie-breaking per fold (:func:`random_tiebreak`)."""
+    if cfg.tie_break == "random":
+        if rng is None:
+            raise ValueError("tie_break='random' needs an rng")
+        broken = [random_tiebreak(f, c, rng) for f, c in zip(fold_scores, cal_scores, strict=True)]
+        fold_scores, cal_scores = [b[0] for b in broken], [b[1] for b in broken]
     pvals, evals, fold_id, fbh, thresholds = [], [], [], [], []
     for j, (fs, cs) in enumerate(zip(fold_scores, cal_scores, strict=True)):
         p = conformal_pvalues(fs, cs)

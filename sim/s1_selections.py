@@ -37,7 +37,7 @@ def one_rep(rho: float, shift: float, m_cal: int, rng: np.random.Generator) -> d
     x[poison] += shift
     cal = rng.standard_normal((m_cal, 2))
     folds = np.array_split(rng.permutation(N), 2)
-    cfg = CalibrationConfig(alpha=ALPHA, alpha_bh=ALPHA_BH, removal_level=FPR_LEVEL, n_resamples=1)
+    cfg = CalibrationConfig(alpha=ALPHA, alpha_bh=ALPHA_BH, removal_level=FPR_LEVEL, n_resamples=1, tie_break="none")
     out = run_cord([x[f] @ w for f, w in zip(folds, DIRECTIONS, strict=True)], [cal @ w for w in DIRECTIONS], cfg)
     null = ~np.concatenate([poison[f] for f in folds])
     res: dict[str, float] = {}

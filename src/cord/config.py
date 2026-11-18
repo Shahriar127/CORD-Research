@@ -137,6 +137,10 @@ class CalibrationConfig(_Strict):
     presence_permutations: int = 200
     n_resamples: int = Field(20, ge=1, description="B redraws of the C_tr / C_cal partition")
     storey_lambda: float = 0.5
+    tie_break: Literal["random", "none"] = Field(
+        "random",
+        description="break score ties by independent uniforms before calibration (assumption A3 of the proofs)",
+    )
 
 
 class ExperimentConfig(_Strict):

@@ -29,7 +29,7 @@ so a tampered file cannot execute code.
 ## Quickstart
 
 ```bash
-pytest -q                                      # 50 tests: exactness, validity, A2, end-to-end
+pytest -q                                      # 66 tests: exactness, validity, A2, reference check, end-to-end
 cord floors                                    # Table 5 (selection floor, presence threshold)
 python sim/s1_selections.py                    # Study S1  -> sim/results/
 python sim/s2_presence_contamination.py        # Study S2 (includes the former audit_sim.py)
@@ -98,7 +98,7 @@ src/cord/
 configs/        base, pilot and smoke configs (YAML, validated by pydantic)
 experiments/    pilot grid, gate checker, Kaggle guide
 sim/            synthetic studies S1 and S2
-proofs/         LaTeX skeleton of Propositions 1–4
+proofs/         Propositions 1–4 (main.tex; Prop. 4 in part), internal review, reading guide
 docs/           proposal v3.1 → v3.2 changes with evidence
 tests/          pytest suite
 ```

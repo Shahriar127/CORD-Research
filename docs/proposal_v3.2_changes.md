@@ -157,3 +157,57 @@ default; the oriented variant remains available as `audit.tr_ranking=oriented_me
 **Open items for the GPU pilot.** Confirm Run B with augmentation, full data and width 64;
 measure how often fold models fail to learn low-rate backdoors (ρ = 1%), which is where the
 reversal matters.
+
+---
+
+## Change 5 — Threshold of the conformal e-values (Section 4.1, eq. 3) and the selection floor (Section 5)
+
+**Problem.** v3.1 defines the e-value threshold as "the smallest score among [BH's] rejections".
+The validity of the e-values (Σ over null points of E[e_i] ≤ N_j, which e-BH needs) holds when the
+threshold is a *stopping time* of an upward scan over the pooled fold and calibration scores. The
+smallest rejected fold score is not one: whether the next point up is a fold point is not yet
+known when the scan must decide. Selections are the same either way, but the v3.1 threshold counts
+fewer calibration points and gives larger e-values.
+
+**Evidence.** Simulation with 5 clean and 40 strongly shifted fold points, m = 2, α_bh = 0.9,
+40,000 repetitions: null mass 1.22 N_j⁰ with the v3.1 threshold, 1.00 N_j⁰ with the stopping value
+(standard error 0.003). At m ≥ 1,000 the difference is negligible (Study S1 is unchanged).
+Fixed in `cord.stats.conformal_evalues`, checked against the reference code of Bashari et al. and
+a brute-force implementation, with a regression test; proof in `proofs/main.tex`, Lemma 5 and
+Remark 1.
+
+**Replacement text, Section 4.1.** "Run BH at level α_bh on the p-values of fold j and let T_j be
+the first value, scanning the pooled scores of the fold and of the calibration set upwards, at
+which the BH condition holds; it may be a calibration score, and the points scoring at least this
+value are exactly the BH rejections."
+
+**Selection floor (Section 5).** Writing out Proposition 2 made two statements precise:
+- below the floor a selection is not impossible but rare and mostly clean: every non-empty
+  selection has FDP ≥ 1 − ρ/ρ_sel, so under FDR control its probability is at most
+  α/(1 − ρ/ρ_sel);
+- per-class calibration lowers the floor by the factor (m+1)/(m+K), not "not at all"; negligible
+  at the sizes studied (0.4% at m = 2,000, K = 10).
+
+Both are in the v3.2 document (Section 4.1, Section 5 and Appendix C).
+
+---
+
+## Change 6 — From the statistical review (Proposition 4, ties, pre-specification)
+
+Source: `proofs/REVIEW.md` (internal review, 2026-11-18) and `proofs/main.tex`.
+
+- **Proposition 4 is proved** for contamination that does not depend on the clean calibration
+  points (no audit, a full audit, or an audit that does not look at calibration scores):
+  fold-wise BH and e-BH have FDR ≤ α(1+m)/(1+m⁰) ≤ α/(1−ε) for *any* scores of the poisoned
+  calibration points, with no O(1/m) term; the p-value bound (a) holds for every audit that
+  removes only poison. **Text:** Table 2, row C4, validity column: replace "FDR inflated by at
+  most 1/(1−ε) (Proposition 4, to be proved)" with "FDR inflated by at most a factor 1/(1−ε)
+  (Proposition 4; proved unless the audit selects points by score)". Section 5, Proposition 4:
+  replace "to be proved" and "we conjecture" by the statement above, and keep step (b) for the
+  score-ranked audit as open, supported by Study S2 finding (5).
+- **Ties.** Scores are made distinct by random tie-breaking before calibration; Section 4.1 should
+  say so in one sentence ("ties between scores are broken by independent uniform variables").
+- **Pre-specification.** Section 7.3, add: "α, α_bh, the removal level, k, the signal set, the
+  fusion method and the audit budgets are fixed before the evaluated data are seen; the α_bh sweep
+  of Section 6.1 is run on development conditions only."
+

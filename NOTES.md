@@ -78,7 +78,12 @@ The week-by-week plan with gates and dates is in [`ROADMAP.md`](ROADMAP.md).
 | 3 | Fig. 3a assumed independent C_cal per fold | Shared C_cal is the primary curve in S2; v3.1 setup dotted | Done |
 | 4 | Do signals separate poison once the backdoor is learned? | CPU mini-pilot, `configs/cpu_minipilot.yaml` (augmentation off) | Yes: ASR 99%; SCALE-UP 0.95, confidence 0.92, STRIP 0.82; PU fusion with a clean reference 0.98. Repeat on GPU with augmentation |
 
-Proposal wording for all four: `docs/proposal_v3.2_changes.md`. A data-driven orientation of
+| 5 | e-value threshold of proposal eq. (3) is not a stopping time | Threshold = first pooled value where BH's condition holds | Done (2026-11-18): null e-value mass 1.22 → 1.00 in the worst simulated case; code, proof, test and v3.2 docx updated |
+
+| 6 | Ties broke the theorems' A3 for discrete scores | Random tie-breaking before calibration (`calibration.tie_break: random`) | Done (2026-11-18) |
+| 7 | Proposition 4 was a conjecture | Proved FDR ≤ α/(1−ε) for audits that do not use calibration scores; open for the score-ranked audit | Done in part (2026-11-18), `proofs/REVIEW.md` |
+
+Proposal wording for all of these: `docs/proposal_v3.2_changes.md` (Changes 1–6). A data-driven orientation of
 signals (`oriented_mean_rank`) was tried and is **not** the default: it helped only when the
 backdoor was not learned.
 

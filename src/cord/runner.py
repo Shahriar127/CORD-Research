@@ -298,7 +298,7 @@ class ExperimentRun:
                     audited.append(cs[a.keep])
                     audit_stats["audit_poison_removed"] += a.n_poison_removed
                     audit_stats["audit_clean_removed"] += a.n_clean_removed
-                outputs = run_cord(fold_s, audited, cfg.calibration)
+                outputs = run_cord(fold_s, audited, cfg.calibration, make_rng(seed, "ties", b, method))
                 row = {
                     "resample": b,
                     "method": method,

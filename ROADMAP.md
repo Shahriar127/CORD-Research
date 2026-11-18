@@ -9,7 +9,7 @@ changed in v3.2).
 | First roadmap said | Now | Why |
 |---|---|---|
 | Use `backdoor-toolbox` for attacks and the pilot | CORD has its own pipeline (`src/cord`) with five attacks, cross-fitted training and all signals; `backdoor-toolbox` and BackdoorBench are used to **check our attacks** and for **baselines** | Cross-fitting, the feature cache and the conformal outputs need code built around the hold-out and folds |
-| Build the pilot code in weeks 5–9, one signal at a time | Built and tested on CPU (50 tests). Weeks 5–9 are now **running** the pilot | Done ahead of plan |
+| Build the pilot code in weeks 5–9, one signal at a time | Built and tested on CPU (66 tests). Weeks 5–9 are now **running** the pilot | Done ahead of plan |
 | "Cross-fitting may weaken the signals" | Partly answered: once a backdoor is learned, held-out poison is separated (SCALE-UP AUROC 0.95, confidence 0.92, STRIP 0.82; CPU mini-pilot) | Needs confirming on GPU with augmentation and full data |
 | Audit the top 100–200 calibration points | Audit **both** parts of the hold-out (C_tr and C_cal), with budgets about **3ρm** each (300 in the configs) | Mini-pilot: 100-point audits blocked every FDR selection; proposal v3.2, Changes 1–2 |
 | Figure 3a as in v3.1 | Shared calibration set is the main result; presence power is lower (91% vs 97% at ρ = 0.5%) | Proposal v3.2, Change 3 |
@@ -52,12 +52,18 @@ scope to CIFAR-10 + GTSRB with fewer baselines (see the end).
 **Theory (laptop)**
 - [ ] **next** Read in this order: Bates et al. (conformal p-values), Marandon et al. (AdaDetect),
       Bashari et al. 2023 (e-values), Wang and Ramdas (e-BH), Bashari et al. 2025 (Label-Trim),
-      Qi et al. (adaptive attacks).
-- [ ] Write Propositions 1–3 in full in `proofs/main.tex`. Proposition 2 is nearly done; most work
-      is Proposition 1, verifying A2 for each component. Two A2 items are new in v3.2 and must be in
-      the proof: the C_tr audit (its ranking is a symmetric function of the scored set) and the
-      tie-breaking in the fusion score.
-- [ ] Check `cord.stats` e-values and e-BH against `Meshiba/derandomized-novelty-detection` on the
+      Qi et al. (adaptive attacks). What to take from each and where it is used:
+      `proofs/READING.md`.
+- [x] Write Propositions 1–3 in full in `proofs/main.tex` (2026-11-18; 8 pages, self-contained
+      supermartingale proofs; open items listed at its end). Writing them found a bug in eq. (3),
+      now fixed (`docs/proposal_v3.2_changes.md`, Change 5). A2 is verified component by component
+      in Lemma 2, including the two items new in v3.2 (C_tr audit, tie-breaking of the fused score).
+- [x] Internal statistical review (`proofs/REVIEW.md`, 2026-11-18): 9 findings fixed, including
+      enforced tie-breaking and a proof of Proposition 4 for audits that do not use calibration
+      scores.
+- [ ] **next** Get `proofs/main.tex` checked by an outside statistician; start from
+      `proofs/REVIEW.md` (still a precondition for G0).
+- [x] Check `cord.stats` e-values and e-BH against `Meshiba/derandomized-novelty-detection` on the
       same inputs (one small script in `tests/`).
 - [ ] **open** Email for the two roles: a statistician to check the proofs, and a supervisor or
       collaborator with GPU access. Slowest items; preconditions in the proposal.
@@ -100,7 +106,9 @@ contamination analysis.
 
 ## Weeks 10–14 — Gate G2 (contamination)
 
-- [ ] Prove Proposition 4, or verify the bound empirically and state it as a conjecture.
+- [x] Proposition 4 proved for audits that do not use calibration scores (FDR ≤ α/(1−ε)).
+- [ ] Proposition 4(b)–(c) for the score-ranked top-b audit: prove, or compare with a random-
+      inspection audit (covered by the theorem) in E5.
 - [ ] Experiment E5 on cached scores: audit budgets as multiples of ρm for both hold-out parts,
       auditor miss rate, wrong removals (`audit.*` settings with `results_tag`).
 - [ ] Measure audit cost: distinct points inspected per dataset and time per inspection.

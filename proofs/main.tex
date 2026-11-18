@@ -1,125 +1,581 @@
-% CORD -- theory notes for Gate G0 (Propositions 1-3 in full, Proposition 4 to be proved).
-% Build: latexmk -pdf main.tex
+% CORD -- proofs for Gate G0: Propositions 1-3 in full; Proposition 4 and the residual-check lemma open.
+% Build: pdflatex main.tex (twice)
 \documentclass[11pt]{article}
 \usepackage[margin=1in]{geometry}
-\usepackage{amsmath,amssymb,amsthm,mathtools,bm,hyperref,enumitem}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm,enumitem}
+\usepackage[hidelinks]{hyperref}
 
 \newtheorem{proposition}{Proposition}
 \newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
 \theoremstyle{definition}
 \newtheorem{assumption}{Assumption}
+\newtheorem{definition}{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
 \newcommand{\Cal}{\mathcal{C}_{\mathrm{cal}}}
 \newcommand{\Ctr}{\mathcal{C}_{\mathrm{tr}}}
+\newcommand{\C}{\mathcal{C}}
+\newcommand{\D}{\mathcal{D}}
+\newcommand{\G}{\mathcal{G}}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\Q}{\mathcal{Q}}
 \newcommand{\Hnull}{\mathcal{H}_0}
-\newcommand{\todo}[1]{\par\noindent\textbf{TODO.}~\emph{#1}\par}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\1}{\mathbf{1}}
+\newcommand{\todo}[1]{\par\noindent\textbf{Open.}~\emph{#1}\par}
 
-\title{CORD: proofs of the finite-sample guarantees}
+\title{CORD: finite-sample guarantees\\[2pt]\large Propositions 1--3 in full (Gate G0)}
 \author{Md.\ Shahriar Jubair Mahim}
-\date{Draft for Gate G0}
+\date{Draft, 18 November 2026 --- revised after an internal review (\texttt{REVIEW.md});\\ still to be checked by an outside statistician}
 
 \begin{document}
 \maketitle
 
+\begin{abstract}
+We prove the validity statements of CORD for the cross-fitted, learned scores of the
+implementation: super-uniform conformal p-values, false discovery rate (FDR) control of fold-wise
+BH, FDR control of e-BH on pooled conformal e-values under arbitrary dependence between folds,
+the selection floor, the exact null distribution of the presence test, and the bound
+$\mathrm{FDR}\le\alpha/(1-\varepsilon)$ under a share $\varepsilon$ of poisoned calibration points
+placed arbitrarily (Proposition~4, for audits that do not depend on clean calibration scores). The proofs are
+self-contained. They rest on one structural lemma (conditionally on everything except which clean
+points went to the fold and which to the calibration set, all scores are fixed and that split is
+uniformly random) and on a classical backward supermartingale. Numbering follows proposal v3.2.
+\end{abstract}
+
 \section{Setting and notation}
-Pool of $n_0$ labelled samples; random hold-out $\mathcal{C}=\Ctr\cup\Cal$ with
-$|\Cal|=m$; training set $D$ partitioned into folds $D_1,\dots,D_J$; fold model $f_{-j}$ trained
-on $D\setminus D_j$; fused score $s_j(\cdot)$; null set $\Hnull$ (clean points). Code
-correspondence: \texttt{cord.splits}, \texttt{cord.signals}, \texttt{cord.fusion},
-\texttt{cord.pipeline}.
 
-\begin{assumption}[A1, clean exchangeability]
-Conditional on the poisoned samples, the clean points of each $D_j$ and the clean points of
-$\Cal$ are exchangeable.
+The untrusted pool is a finite set of labelled samples, some of them modified by the attacker
+(\emph{poisoned}); a sample is \emph{clean} if the attacker did not modify it. The defender draws a
+random hold-out $\C=\Ctr\cup\Cal$ and partitions the rest into folds $\D_1,\dots,\D_J$. Fold model
+$f_{-j}$ is trained on $\D\setminus\D_j$ only. For fold $j$ the \emph{scored set} is
+$S_j=\D_j\cup\C$; every point of $S_j$ receives a fused score $s_j(\cdot)$, larger meaning more
+suspicious.
+
+The calibration audit (Section~3.3 of the proposal) removes points of $\Cal$; we write $\Cal$ for
+the calibration set \emph{after} the audit and $m=|\Cal|$. Within fold $j$: $N_j=|\D_j|$, $\Hnull$
+the set of clean points, $N_j^0=|\Hnull\cap\D_j|$, $n=\sum_j N_j$. For a threshold $t$,
+\begin{gather*}
+V_j(t)=\#\{c\in\Cal: s_j(c)\ge t\},\qquad K_j(t)=\#\{i\in\D_j: s_j(i)\ge t\},\\
+K^0_j(t)=\#\{i\in\D_j\cap\Hnull: s_j(i)\ge t\}.
+\end{gather*}
+Conformal p-value, BH stopping threshold and conformal e-value (proposal eqs.~(2)--(3), with the
+correction of Remark~\ref{rem:threshold}):
+\begin{gather*}
+p_i=\frac{1+V_j(s_j(i))}{1+m},\qquad
+e_i=\frac{(1+m)\,\1\{s_j(i)\ge T_j\}}{1+V_j(T_j)},\\
+T_j=\min\Bigl\{t\in\Sigma_j:\ K_j(t)\ge1,\ \frac{(1+V_j(t))\,N_j}{(1+m)\,K_j(t)}\le\alpha_{\mathrm{bh}}\Bigr\},
+\end{gather*}
+for $i\in\D_j$, where $\Sigma_j=\{s_j(z):z\in\D_j\cup\Cal\}$ is the set of \emph{pooled} fold and
+calibration scores, $\min\emptyset=+\infty$ and $e_i=0$ when $T_j=+\infty$. The set
+$\{i\in\D_j:s_j(i)\ge T_j\}$ is the BH rejection set at level $\alpha_{\mathrm{bh}}$: if $s^\ast$ is the
+smallest rejected fold score, no fold score lies in $[T_j,s^\ast)$, because the BH condition, once
+it holds at some $t$, keeps holding up to the next fold score ($K_j$ is constant there and $V_j$
+non-increasing). Code:
+\texttt{cord.stats.conformal}, \texttt{cord.pipeline.run\_cord}; the implementation agrees with
+the reference code of Bashari et al.\ (\texttt{tests/test\_reference\_evalues.py}).
+
+\section{Assumptions}
+
+\begin{assumption}[A1, clean exchangeability]\label{as:A1}
+Let $\G_j$ be the $\sigma$-field generated by: the samples of $\D\setminus\D_j$ (features and
+given labels); the poisoned samples of $S_j$ together with the part ($\D_j$, $\Ctr$ or the
+pre-audit calibration part) each belongs to; the samples of $\Ctr$; the unordered set
+$\Q_j=(\D_j\cup\Cal)\cap\Hnull$ of clean points of the fold and of the calibration set; and all
+randomness of training and scoring that is independent of the data (seeds). Conditionally on
+$\G_j$, the subset of $\Q_j$ that lies in $\D_j$ is uniformly distributed over the subsets of
+$\Q_j$ of size $N_j^0$.
 \end{assumption}
 
-\begin{assumption}[A2, score invariance]
-Within fold $j$, every score is a function of the scored point and of quantities that are
-either independent of $(D_j,\Cal)$ or invariant to permutations of $D_j\cup\Cal$.
+In mode~T1, A1 follows from the construction: the hold-out and the folds are a uniformly random
+partition of the pool drawn after poisoning (proposal Section~3.2), independently of the data, so
+once everything except the split of $\Q_j$ is fixed, that split is uniform. This holds whatever
+rule the attacker used to choose which samples to poison (classes C1--C3 of Table~2). A1 also
+requires the calibration audit to remove only poisoned points, so that every clean calibration
+point is kept; this is the ``uncontaminated $\Cal$'' hypothesis of Proposition~1.
+
+\begin{assumption}[A2, score invariance]\label{as:A2}
+For each fold $j$ there is a $\G_j$-measurable function $\varphi_j$ such that
+$s_j(z)=\varphi_j(z)$ for every $z\in S_j$. That every score is a function of the scored
+point and of quantities that are either independent of $(\D_j,\Cal)$ or invariant to permutations
+of $\D_j\cup\Cal$ is a sufficient condition.
 \end{assumption}
 
-\paragraph{Verification of A2 for the implementation.}
-\todo{One lemma per component, each pointing to the code and the test
-\texttt{tests/test\_signals\_fusion.py} that checks the property:
-(i) $f_{-j}$ depends only on $D\setminus D_j$ (\texttt{Split.train\_indices});
-(ii) class statistics, kNN graphs and rank normalisations are symmetric functions of
-$D_j\cup\mathcal{C}$ (\texttt{cord.signals});
-(iii) STRIP partners are drawn from $D\setminus D_j$;
-(iv) the frozen encoder is independent of the data;
-(v) the PU classifier is a symmetric function of the unordered set $D_j\cup\Cal$ given $\Ctr$,
-including the tie-breaking rule \texttt{break\_ties}.
-Note that (ii) uses $\Ctr$ as well: it is independent of $(D_j,\Cal)$ given the split.}
+\begin{assumption}[A3, no ties]\label{as:A3}
+Almost surely, the scores $\{s_j(z):z\in\D_j\cup\Cal\}$ are pairwise distinct.
+\end{assumption}
 
-\section{Validity of the selections}
-\begin{proposition}[Prop.~1]
-Under A1, A2 and an uncontaminated $\Cal$:
-(i) $\Pr(p_i\le t)\le t$ for every clean $i$;
-(ii) BH within fold $j$ controls that fold's FDR at $\alpha|\Hnull\cap D_j|/|D_j|$;
-(iii) e-BH on the pooled conformal e-values controls the overall FDR at $\alpha$ for any
-dependence between folds.
-\end{proposition}
-\begin{proof}[Proof structure]
-\todo{Condition on $D\setminus D_j$ and on the poisoned points of $D_j$. Then $f_{-j}$ is fixed;
-by A1 and A2 the scores of clean points of $D_j$ and of $\Cal$ are exchangeable; rank argument
-for (i). (ii): PRDS of conformal p-values (Bates et al., 2023) and its learned-score extension
-(Marandon et al., 2024). (iii): show $\sum_{i\in\Hnull\cap D_j}\mathbb{E}[e_i]\le|D_j|$ for the
-e-values built from a BH run at level $\alpha_{\mathrm{bh}}$ (Bashari et al., 2023), sum over folds,
-apply Wang and Ramdas (2022). Check that the bound of Bashari et al.\ carries over to scores
-learned from the pooled set.}
-\end{proof}
+A3 is used in Proposition~1(ii)--(iii) and Proposition~4(b)--(c); Proposition~1(i) and
+Proposition~3 hold without it (Remarks~\ref{rem:ties-p} and~\ref{rem:ties-pres}). \emph{The
+implementation enforces A3}: before calibration it replaces the scores of $\D_j\cup\Cal$ by their
+pooled ranks with ties broken by independent uniform variables (\texttt{cord.pipeline.random\_tiebreak}).
+The uniforms are independent of the data and of the split, so A1--A2 are kept; and every procedure
+below depends on the scores only through their order, so nothing changes when scores are already
+distinct.
 
-\section{Selection floor}
-\begin{proposition}[Prop.~2]
-The smallest conformal p-value is $1/(m+1)$ and every conformal e-value is at most $m+1$.
-BH at level $\alpha$ and e-BH both select nothing unless the selected fraction satisfies
-$\rho\ge\rho_{\mathrm{sel}}=1/(\alpha(m+1))$.
-\end{proposition}
+\section{Two structural lemmas}
+
+\begin{lemma}[Conditional structure]\label{lem:structure}
+Under A1 and A2, conditionally on $\G_j$: (a) the score $s_j(z)$ of every $z\in S_j$ is fixed;
+(b) the split of $\Q_j$ into $\D_j\cap\Hnull$ (size $N_j^0$) and $\Cal$ (size $m$) is uniformly
+random; (c) the scores of the poisoned points of $\D_j$ are fixed, and so are their labels as
+members of $\D_j$.
+\end{lemma}
+
 \begin{proof}
-BH rejects $k$ of $N$ only if $p_{(k)}\le\alpha k/N$, hence only if $1/(m+1)\le\alpha k/N$,
-i.e.\ $k/N\ge 1/(\alpha(m+1))$. e-BH selects $k$ of $n$ only if $e_{(k)}\ge n/(\alpha k)$, and
-$e_{(k)}\le m+1$ gives the same inequality with $N=n$.
-\todo{Per-class calibration: show the floor is unchanged when hypotheses and calibration points
-are split proportionally across $K$ classes.}
+(a) is A2: $s_j=\varphi_j$ with $\varphi_j$ fixed given $\G_j$, and each point's features and
+given label are fixed given $\G_j$ (the points of $\Q_j$ are fixed as a set; only their part is
+random). (b) is A1. (c) holds because the poisoned points of $S_j$ and their parts are
+$\G_j$-measurable.
 \end{proof}
 
-\section{Presence test}
-\begin{proposition}[Prop.~3]
-Let $T_j^{(k)}$ be the number of points of $D_j$ whose score exceeds the $k$-th largest score in
-$\Cal$. Under A1, A2 and no poison in $D_j\cup\Cal$, with $N=|D_j|$,
+Lemma~\ref{lem:structure} reduces every statement below to a combinatorial one: a fixed list of
+$N_j^0+m$ distinct numbers (the clean scores), a uniformly random choice of which $N_j^0$ of them
+are ``fold'' and which $m$ are ``calibration'', and a fixed list of non-null fold scores.
+
+\begin{lemma}[The implementation satisfies A2]\label{lem:A2}
+Each component of the CORD pipeline, as implemented, satisfies A2:
+\begin{enumerate}[label=(\roman*),leftmargin=*]
+\item \emph{Fold model.} $f_{-j}$ is trained on $\D\setminus\D_j$ with data-independent seeds
+  (\texttt{Split.train\_indices}); it is $\G_j$-measurable. The hold-out is never trained on.
+\item \emph{Training-time quantities.} The confidence trajectory is the fold model's checkpoint
+  predictions on the scored points; checkpoints are functions of $\D\setminus\D_j$ and the seeds.
+\item \emph{Perturbation signals.} SCALE-UP predictions are functions of the point and of
+  $f_{-j}$. STRIP blends each point with fixed partners drawn from $\D\setminus\D_j$, which
+  are $\G_j$-measurable.
+\item \emph{Class statistics and neighbour graphs.} Latent-geometry statistics (robust class means
+  and covariances, PCA, spectral directions), the class-median gradient direction and the
+  $k$-nearest-neighbour graph of the label-content signal are computed on the whole scored set
+  $S_j$ (the point itself excluded for neighbours). As functions of the \emph{unordered} set $S_j$
+  they are invariant to permutations of $\D_j\cup\Cal$; and $S_j$, as an unordered set, is
+  $\G_j$-measurable. Singular vectors are defined only up to sign, and a numerical SVD may pick
+  the sign by row order; the signals use only sign-invariant functions of them (squared
+  projections, Mahalanobis distances after PCA).
+\item \emph{Frozen encoder.} A public pretrained encoder does not depend on the pool.
+\item \emph{Rank normalisation and naive fusions.} Within-set ranks over $S_j$, their mean and
+  maximum are symmetric functions of $S_j$.
+\item \emph{Audit of $\Ctr$ (new in v3.2).} The points of $\Ctr$ to inspect are the top
+  $b_{\mathrm{tr}}$ of $\Ctr$ under the mean of within-set ranks (a symmetric function of $S_j$,
+  item~(vi)); the points removed are those inspected and poisoned. Both depend on $\D_j\cup\Cal$
+  only through $S_j$ as a set, and on the poison identities of $\Ctr$, which are in $\G_j$.
+\item \emph{Positive-unlabeled fusion.} The classifier is fitted on the rows of $S_j$ with
+  label~0 for the (audited) $\Ctr$ and label~1 for $\D_j\cup\Cal$; the fitting algorithm with a
+  fixed seed is a function of its training \emph{multiset}. Its output is therefore a fixed
+  function $g_j$ given $\G_j$, and the fused score is $g_j$ applied to the point's signal vector.
+\item \emph{Tie-breaking of the fused score (new in v3.2).} The implementation orders points by
+  $g_j$ and breaks ties by the mean rank of item~(vi), a symmetric function of $S_j$.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+Items (i)--(iii) and (v) are functions of the point and of $\G_j$-measurable objects. Items
+(iv), (vi), (vii) and (ix) are functions of the point and of symmetric functions of $S_j$
+(together with $\G_j$-measurable labels), and a symmetric function of $S_j$ is fixed given $\G_j$
+because $S_j=\Q_j\cup\{\text{poisoned points of }S_j\}\cup\Ctr$ as an unordered set. For (viii),
+the fit depends on $\D_j\cup\Cal$ only through the multiset of its rows, which is fixed given
+$\G_j$. Composition of such maps preserves the property.
+\end{proof}
+
+\todo{Two implementation facts used in (viii) are checked empirically rather than proved:
+order-invariance of the histogram gradient-boosting fit (exact up to floating-point summation
+order; the test suite checks equivariance to $10^{-5}$) and of logistic regression. A statistician should decide whether to state (viii) for an idealised exact fit.}
+
+\section{A backward supermartingale}
+
+\begin{lemma}[Optional stopping]\label{lem:martingale}
+Let $v_{(1)}<\dots<v_{(r)}$ be fixed distinct numbers, $r=N^0+m$, and assign the label ``fold'' to
+a uniformly random subset of $N^0$ of them and ``calibration'' to the other $m$. Reveal the
+numbers from the smallest upwards: after $k$ steps, $\F_k$ is generated by the labels of
+$v_{(1)},\dots,v_{(k)}$. Let $X_k$ and $Y_k$ be the numbers of fold and calibration labels among
+$v_{(k+1)},\dots,v_{(r)}$, and $M_k=X_k/(1+Y_k)$. Then $(M_k)_{k=0}^{r}$ is an
+$(\F_k)$-supermartingale, and for every $(\F_k)$-stopping time $\tau\le r$,
 \[
-\Pr\bigl(T_j^{(k)}\ge t\bigr)=F_{\mathrm{HG}}\bigl(k-1;\,N+m,\,m,\,t+k-1\bigr),
-\qquad\text{in particular}\quad \Pr\bigl(T_j^{(1)}\ge t\bigr)=\binom{N}{t}\Big/\binom{N+m}{t},
+\E[M_\tau]\le M_0=\frac{N^0}{1+m}.
 \]
-so $\pi_j=F_{\mathrm{HG}}(k-1;N+m,m,T_j+k-1)$ is a valid p-value and rejecting when
-$\min_j\pi_j\le\alpha/J$ has false-alarm probability at most $\alpha$.
-\end{proposition}
-\begin{proof}[Proof structure]
-Under exchangeability (and almost surely no ties) the ranks of the $N+m$ pooled scores are a
-uniformly random permutation. $T^{(k)}\ge t$ iff at most $k-1$ calibration points are among the
-top $t+k-1$ pooled ranks; the number of calibration points among those positions is
-hypergeometric. Bonferroni over folds needs no assumption on their dependence.
-\todo{Ties: strict exceedance makes the test conservative; write the argument. Implementation:
-\texttt{cord.stats.presence}; exactness checked in \texttt{tests/test\_stats.py}.}
+\end{lemma}
+
+\begin{proof}
+Given $\F_k$, the remaining $X_k+Y_k=r-k$ labels are a uniformly random arrangement of $X_k$
+fold and $Y_k$ calibration labels, so $v_{(k+1)}$ is a fold point with probability
+$X_k/(r-k)$. If $Y_k\ge1$,
+\[
+\E[M_{k+1}\mid\F_k]=\frac{X_k}{r-k}\cdot\frac{X_k-1}{1+Y_k}+\frac{Y_k}{r-k}\cdot\frac{X_k}{Y_k}
+=\frac{X_k}{r-k}\cdot\frac{X_k-1+1+Y_k}{1+Y_k}=\frac{X_k}{1+Y_k}=M_k .
+\]
+If $Y_k=0$, the next point is a fold point and $M_{k+1}=X_k-1\le M_k$ (and $M$ stays at $0$ once
+$X_k=0$). Hence $M$ is a supermartingale; $\tau$ is bounded, so optional stopping gives
+$\E[M_\tau]\le\E[M_0]$, and $M_0=N^0/(1+m)$ is deterministic.
 \end{proof}
 
-\paragraph{Threshold.} Since $\binom{N}{t}/\binom{N+m}{t}\le(N/(N+m))^t$, the test rejects whenever
-$T_j\ge \ln(J/\alpha)/\ln(1+m/N)$, i.e.\ at a rate of high-scoring poison
-$\rho_{\mathrm{pres}}\approx\ln(J/\alpha)/m$ for $N\gg m$ (\texttt{cord floors}).
+\begin{lemma}[Upward-scanning thresholds]\label{lem:stopping}
+Assume A1--A3 and work conditionally on $\G_j$. Allow $\Cal$ to contain poisoned points, provided
+the set $B$ of them is $\G_j$-measurable; write $V_j=V^0_j+V^B_j$ (clean and poisoned calibration
+counts) and $m^0=m-|B|$; for an uncontaminated $\Cal$, $V^0_j=V_j$ and $m^0=m$. Let $T$ be a
+threshold chosen by scanning the
+pooled scores $\Sigma_j$ (and, if desired, other fixed values) in increasing order and stopping at
+the first $t$ for which a rule depending only on $\bigl(t, V_j(t'),K_j(t')\bigr)_{t'\le t}$ holds
+($T=+\infty$ if none does). Candidate values must not depend on the fold/calibration labels of
+clean points above $t$; in particular, ``the smallest \emph{fold} score at which the rule holds''
+is \emph{not} of this form (Remark~\ref{rem:threshold}). Then
+\[
+\E\!\left[\frac{K^0_j(T)}{1+V^0_j(T)}\,\middle|\,\G_j\right]\le\frac{N_j^0}{1+m^0}.
+\]
+\end{lemma}
 
-\section{Contaminated calibration}
-\begin{proposition}[Prop.~4, to be proved]
-If a fraction $\varepsilon$ of $\Cal$ is poisoned, then for a clean point
-$p_i\ge\frac{1+m_{\mathrm{clean}}}{1+m}\,p_i^{\mathrm{clean}}$, hence
-$\Pr(p_i\le t)\le t\,(1+m)/(1+m_{\mathrm{clean}})$; conjecture: $\mathrm{FDR}\le\alpha/(1-\varepsilon)$
-up to $O(1/m)$.
+\begin{proof}
+Apply Lemma~\ref{lem:martingale} to the clean scores $\{s_j(z):z\in\Q_j\}$, which are fixed and
+distinct with a uniformly random fold/calibration split (Lemma~\ref{lem:structure}, A3). For $t$
+in $(v_{(k)},v_{(k+1)}]$ the clean points with score $\ge t$ are exactly
+$v_{(k+1)},\dots,v_{(r)}$, so $V^0_j(t)=Y_k$ and $K^0_j(t)=X_k$, while
+$V_j(t)=Y_k+V^B_j(t)$ and $K_j(t)=X_k+K^1_j(t)$, where $V^B_j(t)$ and $K^1_j(t)$ count the poisoned
+calibration and fold points with score $\ge t$, fixed functions of $t$ (Lemma~\ref{lem:structure}(c)
+and $B\in\G_j$). Here Lemma~\ref{lem:martingale} is applied with $m^0$ calibration labels. Hence whether the scan has stopped at some
+$t'\le t$ is $\F_k$-measurable for $t\in(v_{(k)},v_{(k+1)}]$, and $\tau=\#\{\text{clean scores}<T\}$
+(with $\tau=r$ if $T=+\infty$) is an $(\F_k)$-stopping time. Then
+$K^0_j(T)/(1+V^0_j(T))=M_\tau$ and Lemma~\ref{lem:martingale} applies.
+\end{proof}
+
+\begin{lemma}[Null mass of conformal e-values]\label{lem:evalues}
+Under A1--A3 and an uncontaminated $\Cal$, for every fold $j$,
+\[
+\textstyle\sum_{i\in\D_j\cap\Hnull}\E[e_i]\le N_j^0 .
+\]
+\end{lemma}
+
+\begin{proof}
+$T_j$ is the first pooled score, scanning upwards, at which $K_j(t)\ge1$ and
+$(1+V_j(t))N_j\le\alpha_{\mathrm{bh}}(1+m)K_j(t)$, a rule of the form in Lemma~\ref{lem:stopping}. Every clean fold point with $s_j(i)\ge T_j$ has
+$e_i=(1+m)/(1+V_j(T_j))$, so $\sum_{i\in\D_j\cap\Hnull}e_i=(1+m)K^0_j(T_j)/(1+V_j(T_j))$. Take
+expectations with Lemma~\ref{lem:stopping} and then the expectation over $\G_j$.
+\end{proof}
+
+\begin{remark}[Which threshold, and a correction to proposal eq.~(3)]\label{rem:threshold}
+Lemma~\ref{lem:evalues} needs $T_j$ to be a stopping value of the upward scan over the
+\emph{pooled} scores; it may be a calibration score. Proposal v3.1 defined $T_j$ as the smallest
+score among the BH rejections, a fold score $s^\ast\ge T_j$. That gives the same selections but
+counts $V_j(s^\ast)\le V_j(T_j)$, hence larger e-values, and the decision to stop at $s^\ast$ is not a
+stopping time: whether the next point up is a fold point is not yet revealed. The bound then
+fails: with $N_j^0=5$ clean and $40$ strongly shifted fold points, $m=2$ and
+$\alpha_{\mathrm{bh}}=0.9$, the null mass $\sum_{i}\E[e_i]$ was $1.22\,N_j^0$ in simulation
+($40{,}000$ repetitions, standard error $0.003\,N_j^0$), against $1.00\,N_j^0$ with the stopping
+value. The implementation uses the stopping value (\texttt{cord.stats.conformal\_evalues};
+regression test in \texttt{test\_reference\_evalues.py}).
+
+The reference code of Bashari et al.\ stops its scan with the estimate $V N_j/(mK)$ instead of
+BH's $(1+V)N_j/((1+m)K)$. Both are stopping values of the same scan, hence both give valid
+e-values; CORD's is never lower, so it never selects more.
+\end{remark}
+
+\section{Proposition 1: validity of the three outputs}
+
+\begin{proposition}[Prop.~1]\label{prop:validity}
+Assume A1, A2 and an uncontaminated $\Cal$ (the audit removed every poisoned calibration point
+and no clean one). Then:
+\begin{enumerate}[label=(\roman*)]
+\item for every clean $i\in\D_j$ and $t\in[0,1]$, $\Pr(p_i\le t)\le t$; hence the expected share of
+  clean points in the removal set $R=\{i:p_i\le t\}$ is at most $t$;
+\item under A3, BH at level $\alpha$ within fold $j$ has
+  $\mathrm{FDR}\le\alpha\,\E[N_j^0]/N_j\le\alpha$;
+\item under A3, e-BH at level $\alpha$ applied to the pooled e-values $(e_i)_{i\in\D}$ has
+  $\mathrm{FDR}\le\alpha\,\E|\Hnull\cap\D|/n\le\alpha$, whatever the dependence between folds.
+\end{enumerate}
 \end{proposition}
-\todo{(a) p-value distortion bound; (b) consequence for fold-wise BH and e-BH under adversarial
-placement; (c) an audit that removes only poisoned points keeps every clean calibration point,
-so (a) applies with a smaller contaminated share. If (b) fails, state it as an empirical
-observation backed by experiment E5.}
 
-\section{Residual check}
-\todo{Lemma: after removing $R$ with a threshold that is a symmetric function of the pooled
-scores and is also applied to $\Cal$, survivors remain exchangeable with surviving calibration
-points.}
+\begin{proof}
+(i) Fix a clean $i\in\D_j$ and condition on $\G_j$ and on the set $W=\Cal\cup\{i\}$ (unordered),
+together with the fold/calibration labels of $\Q_j\setminus W$. By Lemma~\ref{lem:structure}(b),
+$i$ is then uniformly distributed over the $m+1$ points of $W$, whose scores are fixed. Under A3,
+$p_i=(1+\#\{c\in W\setminus\{i\}:s_j(c)\ge s_j(i)\})/(1+m)$ is the rank of $i$ in $W$ from the top
+divided by $m+1$, uniform on $\{1/(m+1),\dots,1\}$, so $\Pr(p_i\le t)=\lfloor t(m+1)\rfloor/(m+1)\le t$.
+Without A3 see Remark~\ref{rem:ties-p}. For the clean share of $R$, let $H=|\Hnull\cap\D|$,
+which is $\G_j$-measurable for every $j$. Then
+\[
+\E\Bigl[\frac{|R\cap\Hnull|}{H}\Bigr]=\sum_j\E\Bigl[\frac{1}{H}\,\E\Bigl[\textstyle\sum_{i\in\D_j\cap\Hnull}\1\{p_i\le t\}\Bigm|\G_j\Bigr]\Bigr]
+\le\sum_j\E\Bigl[\frac{tN_j^0}{H}\Bigr]=t .
+\]
+
+(ii) Let $T_\alpha$ be the stopping value $T_j$ with $\alpha_{\mathrm{bh}}=\alpha$. The BH rejections
+are the fold points with score $\ge T_\alpha$, and $K_j(T_\alpha)\ge1$ when $T_\alpha<\infty$. At
+$T_\alpha$ the BH condition gives
+$1/K_j(T_\alpha)\le\alpha(1+m)/\bigl(N_j(1+V_j(T_\alpha))\bigr)$. Hence
+\[
+\mathrm{FDP}=\frac{K^0_j(T_\alpha)}{K_j(T_\alpha)\vee1}\le\frac{\alpha(1+m)}{N_j}\cdot\frac{K^0_j(T_\alpha)}{1+V_j(T_\alpha)},
+\]
+and Lemma~\ref{lem:stopping} gives
+$\E[\mathrm{FDP}\mid\G_j]\le\frac{\alpha(1+m)}{N_j}\cdot\frac{N_j^0}{1+m}=\alpha N_j^0/N_j$; take
+expectations over $\G_j$.
+
+(iii) e-BH selects $R=\{i:e_i\ge n/(\alpha k^\ast)\}$ with
+$k^\ast=\max\{k:e_{(k)}\ge n/(\alpha k)\}$ and $|R|=k^\ast$ (or $R=\emptyset$). For every $i$,
+$\1\{i\in R\}/(|R|\vee1)\le\alpha e_i/n$. Summing over null hypotheses and using
+Lemma~\ref{lem:evalues} fold by fold,
+\[
+\mathrm{FDR}=\E\sum_{i\in\Hnull\cap\D}\frac{\1\{i\in R\}}{|R|\vee1}
+\le\frac{\alpha}{n}\sum_{j}\E\Bigl[\textstyle\sum_{i\in\D_j\cap\Hnull}e_i\Bigr]\le\frac{\alpha}{n}\sum_j \E[N_j^0]
+=\frac{\alpha\,\E|\Hnull\cap\D|}{n}.
+\]
+Only expectations of single e-values enter, so no assumption on the dependence between folds is
+needed.
+\end{proof}
+
+\begin{remark}[Ties in (i)]\label{rem:ties-p}
+With ties, break them by independent uniform variables $U$: the resulting $\tilde p_i$ is exactly
+uniform on the grid by the argument above, and the implemented $p_i$, which counts calibration
+ties against the test point, satisfies $p_i\ge\tilde p_i$. Hence $\Pr(p_i\le t)\le t$ still holds.
+\end{remark}
+
+\begin{remark}[What the proof needs from the attacker]
+Nothing beyond A1: the proof conditions on the poisoned points, so their number, location, scores
+and the rule that chose them are arbitrary. Validity is a statement about clean points only; it
+bounds false alarms and never missed poison.
+\end{remark}
+
+\begin{remark}[Ties in (ii)--(iii)]
+Resolved by construction: the implementation breaks ties at random before calibration
+(Section~2, after A3), which matters for discrete scores such as SCALE-UP consistency and for
+residual ties of the fused score. \texttt{tests/test\_stats.py} checks FDR control on heavily tied
+discrete scores.
+\end{remark}
+
+\begin{remark}[Pre-specification]\label{rem:prespec}
+The guarantees hold for a procedure fixed before the evaluated data are seen: $\alpha$,
+$\alpha_{\mathrm{bh}}$, $t$, $k$, the signal set, the fusion method and the audit budgets. Choosing
+any of them on the evaluated data (e.g.\ the $\alpha_{\mathrm{bh}}$ sweep of Section~6.1, or picking the
+best of the $B$ hold-out redraws) voids them. The pilot's conditions are development data; headline
+results must use attacks, seeds and datasets not used for these choices (proposal Section~4.1).
+Averaging the FDP over hold-out redraws estimates the FDR of one redraw; it is not a different
+procedure.
+\end{remark}
+
+\section{Proposition 2: selection floor}
+
+\begin{proposition}[Prop.~2]\label{prop:floor}
+(i) Every conformal p-value is at least $1/(m+1)$, and BH at level $\alpha$ on $N$ hypotheses
+rejects $k\ge1$ of them only if $1/(m+1)\le\alpha k/N$. (ii) Every conformal e-value is at most
+$m+1$, and e-BH at level $\alpha$ on $n$ hypotheses selects $k\ge1$ of them only if
+$m+1\ge n/(\alpha k)$. In both cases a non-empty selection has selected fraction
+\[
+\frac{k}{N}\ \ge\ \rho_{\mathrm{sel}}=\frac{1}{\alpha(m+1)} .
+\]
+\end{proposition}
+
+\begin{proof}
+(i) $p_i\ge1/(m+1)$ because the count in the numerator is at least one. BH rejects $k$ hypotheses
+only if $p_{(k)}\le\alpha k/N$, hence only if $1/(m+1)\le\alpha k/N$. (ii) $e_i\le(1+m)/(1+V_j(T_j))
+\le1+m$. e-BH selects $k$ only if $e_{(k)}\ge n/(\alpha k)$, hence only if $m+1\ge n/(\alpha k)$.
+Both rearrange to $k/N\ge1/(\alpha(m+1))$ (with $N=n$ in (ii)).
+\end{proof}
+
+\begin{corollary}[Below the floor]
+If the poisoning rate is $\rho<\rho_{\mathrm{sel}}$, every non-empty selection has
+$\mathrm{FDP}\ge1-\rho/\rho_{\mathrm{sel}}$, because it holds at least $\rho_{\mathrm{sel}}N$ points of
+which at most $\rho N$ are poisoned. Under FDR control at level $\alpha$ (Proposition~1),
+\[
+\Pr(\text{any selection})\le\frac{\alpha}{1-\rho/\rho_{\mathrm{sel}}}.
+\]
+So below the floor a selection is rare and mostly clean; ``nothing is selected'' in the proposal
+should be read in this sense.
+\end{corollary}
+
+\begin{proof}
+$\mathrm{FDR}\ge\E[\mathrm{FDP}\,\1\{\text{selection}\}]\ge(1-\rho/\rho_{\mathrm{sel}})\Pr(\text{selection})$.
+\end{proof}
+
+\begin{corollary}[Per-class calibration]
+Suppose hypotheses and calibration points are split into $K$ classes, class $c$ holding a share
+$\pi_c$ of both, and BH is run per class at level $\alpha$. A selection of $k_c\ge1$ points in class
+$c$ requires
+\[
+\frac{k_c}{N}\ \ge\ \frac{\pi_c}{\alpha(\pi_cm+1)}=\frac{1}{\alpha(m+1/\pi_c)} .
+\]
+Per-class calibration therefore lowers the floor, as a fraction of all hypotheses, by the factor
+$(m+1)/(m+1/\pi_c)$; for $K$ equal classes this is $1-(K-1)/(m+K)$, e.g.\ a $0.4\%$ change for
+$m=2000$, $K=10$. As a fraction of the class itself the floor is $1/(\alpha(\pi_cm+1))$, about $K$
+times $\rho_{\mathrm{sel}}$.
+\end{corollary}
+
+\begin{proof}
+Apply Proposition~\ref{prop:floor}(i) within class $c$, with $N$ replaced by $\pi_cN$ and $m$ by
+$\pi_cm$.
+\end{proof}
+
+\begin{remark}
+The proposal states that per-class calibration ``does not lower'' the floor. The corollary makes
+this precise: it lowers it by a factor $1-O(K/m)$, negligible at the calibration sizes studied.
+\end{remark}
+
+\section{Proposition 3: the presence test}
+
+For $1\le k\le m$, let $T^{(k)}_j$ be the number of points of $\D_j$ whose score is strictly larger
+than the $k$-th largest calibration score, and
+\[
+\pi^{(k)}_j=F_{\mathrm{HG}}\bigl(k-1;\ N_j+m,\ m,\ T^{(k)}_j+k-1\bigr),
+\]
+where $F_{\mathrm{HG}}(x;M,K,d)$ is the distribution function of the number of marked items in $d$
+draws without replacement from $M$ items of which $K$ are marked; $\pi_j^{(k)}=1$ when
+$T^{(k)}_j=0$. For $k=1$, $\pi^{(1)}_j=\binom{N_j}{T_j}\big/\binom{N_j+m}{T_j}$ (proposal eq.~(4)).
+
+\begin{proposition}[Prop.~3]\label{prop:presence}
+Under A1 and A2, if fold $j$ and $\Cal$ contain no poisoned point, then
+$\Pr(\pi^{(k)}_j\le u)\le u$ for all $u\in[0,1]$. Consequently the test that declares the dataset
+attacked when $\min_j\pi^{(k)}_j\le\alpha/J$ has false-alarm probability at most $\alpha$ when no
+fold and no calibration point is poisoned, whatever the dependence between folds.
+\end{proposition}
+
+\begin{proof}
+Condition on $\G_j$. With no poison in $\D_j\cup\Cal$, $\Q_j=\D_j\cup\Cal$ and, by
+Lemma~\ref{lem:structure}, the $N_j+m$ scores are fixed while the split into $N_j$ fold and $m$
+calibration points is uniform. Assume first that the scores are distinct and rank them from the
+top. $T^{(k)}_j\ge t$ holds iff the $t$-th highest fold score lies above the $k$-th highest
+calibration score, i.e.\ iff at most $k-1$ calibration points lie among the top $t+k-1$ ranks. The
+number of calibration points among those ranks is hypergeometric with parameters
+$(N_j+m,\,m,\,t+k-1)$, so
+\[
+\Pr\bigl(T^{(k)}_j\ge t\mid\G_j\bigr)=F_{\mathrm{HG}}(k-1;N_j+m,m,t+k-1)=:G(t),
+\]
+which is non-increasing in $t$. Hence $\pi^{(k)}_j=G(T^{(k)}_j)$ is the upper-tail probability of
+$T^{(k)}_j$ at its observed value, and for any $u$, with $t_u=\min\{t:G(t)\le u\}$,
+$\Pr(\pi^{(k)}_j\le u)=\Pr(T^{(k)}_j\ge t_u)=G(t_u)\le u$. For $k=1$,
+$G(t)=\binom{N_j}{t}/\binom{N_j+m}{t}$, the probability that the top $t$ ranks all belong to the
+fold. Ties: Remark~\ref{rem:ties-pres}. The final claim is Bonferroni's inequality over the $J$
+folds, which needs no assumption on their dependence.
+\end{proof}
+
+\begin{remark}[Ties in Proposition 3]\label{rem:ties-pres}
+Break ties by independent uniforms. The $k$-th calibration point in the broken order has the
+$k$-th largest calibration value $v$, and every fold point with score strictly above $v$ is ranked
+above it, so $T^{(k)}_j\le\tilde T^{(k)}_j$, the count after tie-breaking, whose law is the
+hypergeometric one above. Since $G$ is non-increasing, $\pi^{(k)}_j\ge G(\tilde T^{(k)}_j)$ and the
+test remains valid (conservative).
+\end{remark}
+
+\begin{remark}[What a rejection says; the $k>1$ variant]
+The null of Proposition~\ref{prop:presence} is ``no poison in $\D_j\cup\Cal$''. A rejection
+therefore says that the dataset is attacked, not that fold $j$ is: poisoned calibration points
+that score low make $\pi_j$ smaller, because they enlarge $m$ without changing the count. The
+$k$-th-largest variant is valid under the same null for every $k$; its point is power: up to $k-1$
+\emph{high}-scoring poisoned calibration points cannot hide poisoned fold points. Under
+contamination the default ($k=1$) is blocked by a single such point (Study~S2, finding~(7)).
+\end{remark}
+
+\begin{remark}[Shared calibration set]
+All folds use the same $\Cal$, so the $\pi_j$ are dependent (positively, in simulation). The
+Bonferroni combination is valid regardless; a combination that assumes independent folds (Fisher,
+\v{S}id\'ak) would not be. Study~S2 measures the cost: false-alarm rate about $0.027$ at
+$\alpha=0.05$.
+\end{remark}
+
+\paragraph{Threshold.} For $k=1$,
+$\binom{N}{t}\big/\binom{N+m}{t}=\prod_{u=0}^{t-1}\frac{N-u}{N+m-u}\le\bigl(\frac{N}{N+m}\bigr)^t$,
+since each factor is at most $N/(N+m)$. The test therefore rejects whenever
+\[
+T_j\ \ge\ \frac{\ln(J/\alpha)}{\ln(1+m/N_j)},\qquad\text{i.e.}\qquad
+\rho_{\mathrm{pres}}\approx\frac{\ln(J/\alpha)}{m}\quad(N_j\gg m),
+\]
+counting poison that scores above every calibration point (\texttt{cord floors}; Table~5).
+The ratio to the selection floor is $\rho_{\mathrm{pres}}/\rho_{\mathrm{sel}}\approx\alpha\ln(J/\alpha)$,
+$0.18$ at $\alpha=0.05$, $J=2$.
+
+\section{Proposition 4: contaminated calibration}
+
+Let the calibration set left after the audit be $\Cal=C^0\cup B$, with $C^0$ clean,
+$m^0=|C^0|$, $B$ poisoned and $\varepsilon=|B|/m$. Write $p^0_i=(1+V^0_j(s_j(i)))/(1+m^0)$ for the
+p-value computed against $C^0$ alone, and $m_{\mathrm{pre}}$ for the calibration size before the
+audit.
+
+\begin{proposition}[Prop.~4]\label{prop:contamination}
+Assume A1 and A2 for the clean points, the scores of the poisoned points being arbitrary.
+\begin{enumerate}[label=(\alph*)]
+\item For every audit that removes only poisoned points and every clean $i\in\D_j$,
+  $\Pr(p_i\le t)\le t\,(1+m_{\mathrm{pre}})/(1+m^0)$.
+\end{enumerate}
+If moreover $B$ is $\G_j$-measurable (no audit; an audit that removes every poisoned point; or any
+audit whose decisions do not depend on the clean calibration points) and A3 holds, then:
+\begin{enumerate}[label=(\alph*),resume]
+\item fold-wise BH at level $\alpha$ has
+  $\mathrm{FDR}\le\alpha\,\frac{\E[N_j^0]}{N_j}\cdot\frac{1+m}{1+m^0}\le\frac{\alpha}{1-\varepsilon}$;
+\item $\sum_{i\in\D_j\cap\Hnull}\E[e_i]\le N_j^0\,(1+m)/(1+m^0)$, and e-BH on the pooled e-values has
+  $\mathrm{FDR}\le\alpha/(1-\varepsilon_{\max})$, with $\varepsilon_{\max}$ the largest contaminated
+  share over folds.
+\end{enumerate}
+These bounds hold whatever the poisoned calibration points score. The worst placement is below
+every clean point, where the e-value bound in (c) is nearly attained; poison that scores high makes
+both procedures conservative.
+\end{proposition}
+
+\begin{proof}
+(a) $p_i=(1+V^0_j+V^B_j)/(1+m)\ge(1+V^0_j)/(1+m_{\mathrm{pre}})=p^0_i\,(1+m^0)/(1+m_{\mathrm{pre}})$,
+since $V^B_j\ge0$ and $m\le m_{\mathrm{pre}}$. The audit removes only poisoned points, so $C^0$ is the
+whole clean calibration part and $p^0_i$ is super-uniform by Proposition~1(i) applied to $C^0$.
+Hence $\Pr(p_i\le t)\le\Pr\bigl(p^0_i\le t(1+m_{\mathrm{pre}})/(1+m^0)\bigr)\le t(1+m_{\mathrm{pre}})/(1+m^0)$.
+
+(b) At the stopping value $T_\alpha$ the BH condition gives
+$1/K_j\le\alpha(1+m)/\bigl(N_j(1+V_j)\bigr)\le\alpha(1+m)/\bigl(N_j(1+V^0_j)\bigr)$, evaluated at
+$T_\alpha$. Hence $\mathrm{FDP}\le\frac{\alpha(1+m)}{N_j}\cdot K^0_j(T_\alpha)/(1+V^0_j(T_\alpha))$. With
+$B\in\G_j$, the BH rule depends on $V_j=V^0_j+V^B_j$ with $V^B_j$ fixed, so $T_\alpha$ is a stopping
+value and Lemma~\ref{lem:stopping} gives
+$\E[\mathrm{FDP}\mid\G_j]\le\alpha N_j^0(1+m)/\bigl(N_j(1+m^0)\bigr)$. Finally
+$(1+m)(1-\varepsilon)=1-\varepsilon+m^0\le1+m^0$.
+
+(c) $\sum_{i\in\D_j\cap\Hnull}e_i=(1+m)K^0_j(T_j)/(1+V_j(T_j))\le(1+m)K^0_j(T_j)/(1+V^0_j(T_j))$;
+Lemma~\ref{lem:stopping} gives the first claim, and the e-BH argument of Proposition~1(iii) the
+second. Near-attainment in (c): when every poisoned calibration score lies below every clean
+score, $V^B_j=0$ at every threshold the scan can stop at, so $V_j=V^0_j$ there, and the only
+remaining slack is the optional-stopping inequality, which is an equality unless the scan reaches
+$Y_k=0$ before stopping (Lemma~\ref{lem:martingale}). The FDR bound in (b) has further slack from
+the BH condition $1/K_j\le\cdots$.
+\end{proof}
+
+\paragraph{Check by simulation.} $N^0=200$ clean and $50$ shifted fold points, $\alpha=0.2$, $20{,}000$
+repetitions; bound in brackets.
+
+\begin{center}
+\begin{tabular}{lccc}
+$m^0$, $|B|$, placement of $B$ & FDR, fold-wise BH & null e-mass$/N^0$\\\hline
+$20$, $10$, below all clean & $0.178$ \,($0.236$) & $1.449$ \,($1.476$)\\
+$40$, $40$, below all clean & $0.289$ \,($0.316$) & $1.976$ \,($1.976$)\\
+$20$, $10$, above all clean & $0.000$ \,($0.236$) & $0.000$ \,($1.476$)\\
+$20$, $10$, interleaved & $0.028$ \,($0.236$) & $0.216$ \,($1.476$)\\
+\end{tabular}
+\end{center}
+
+\begin{remark}[What is still open]
+(i) The default audit inspects the top-$b$ calibration points \emph{by score}. Which poisoned
+points it reaches then depends on how many clean calibration points score above them, so $B$ is
+not $\G_j$-measurable and (b)--(c) are not covered; (a) is. Study~S2 finding~(5) observed FDR at
+most $0.047$ at $\alpha=0.05$ with this audit. (ii) An audit that also removes clean points by score
+breaks A1 itself; Study~S2 finding~(6) shows the FDR can then reach $0.31$ at $\alpha=0.05$, which is
+why the audit rule removes points only on positive evidence of tampering.
+\end{remark}
+
+\section{Residual check (open)}
+
+\todo{Lemma: after removing $R$ with a threshold that is a symmetric function of the pooled scores
+and is also applied to $\Cal$, the surviving clean points of the fold and of $\Cal$ satisfy A1
+for fresh fold models.}
+
+\section*{Checklist for the reviewing statistician}
+
+Resolved in the internal review (\texttt{proofs/REVIEW.md}): the e-value threshold (Remark~\ref{rem:threshold}),
+ties (enforced A3), random $N_j^0$ in the FDR bounds, Proposition~4(a)--(c). Still to be checked:
+\begin{enumerate}[leftmargin=*]
+\item A1 as stated (uniform split of $\Q_j$ given $\G_j$): is the $\sigma$-field $\G_j$ complete,
+  and does the random hold-out imply A1 for every attacker class C1--C3?
+\item Lemma~\ref{lem:A2}(viii): exact order-invariance of the fitted classifier versus
+  floating-point summation order.
+\item Lemma~\ref{lem:stopping}: the stopping-time argument when the scan passes over poisoned
+  fold and calibration scores between clean ones.
+\item Proposition~4(b)--(c) for the score-ranked top-$b$ audit (open).
+\item The residual-check lemma (open).
+\end{enumerate}
+
+\section*{References}
+Numbering of the proposal: [22] Bates et al.\ (conformal p-values); [23] Marandon et al.\
+(AdaDetect); [24] Bashari et al.\ 2023 (conformal e-values); [25] Wang and Ramdas (e-BH);
+[26] Benjamini and Hochberg; [28] Bashari et al.\ 2025 (Label-Trim); [44] Mary and Roquain;
+[53]--[55] exceedance tests. The backward-supermartingale argument of Lemma~\ref{lem:martingale}
+is classical in the knockoff and conformal FDR literature.
 
 \end{document}
